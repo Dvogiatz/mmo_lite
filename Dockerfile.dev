@@ -1,0 +1,17 @@
+FROM hexpm/elixir:1.18.2-erlang-27.3.4.12-ubuntu-noble-20260509.1
+
+WORKDIR /app
+
+ENV MIX_ENV=dev
+
+RUN apt-get update -y && \
+    apt-get install -y build-essential git nodejs npm inotify-tools && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
+
+RUN mix local.hex --force && mix local.rebar --force
+
+# Pre-install deps so the volume mount doesn't shadow them on first run
+COPY mix.exs mix.lock ./
+RUN mix deps.get
+
+EXPOSE 4000

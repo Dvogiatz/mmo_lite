@@ -1,0 +1,19 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    ports:
+      - "4000:4000"
+    volumes:
+      - .:/app
+      - deps:/app/deps
+      - build:/app/_build
+    environment:
+      - MIX_ENV=dev
+      - PORT=4000
+    command: mix phx.server
+
+volumes:
+  deps:
+  build:
