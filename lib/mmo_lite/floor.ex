@@ -68,6 +68,15 @@ defmodule MmoLite.Floor do
       nil ->
         {:reply, {:error, :unknown_player}, state}
 
+      %{position: nil} ->
+        # A new player, or one transferring in from another floor — pick a
+        # random walkable spot rather than a fixed corner, so players don't
+        # all funnel through the same starting corridor.
+        position = spawn_cell(state)
+        Players.update(token, &%{&1 | position: position})
+        state = broadcast(state)
+        {:reply, {:ok, visible_state(state, token, position)}, state}
+
       player ->
         # Broadcast first so everyone else already on this floor learns a
         # new player appeared nearby, then reply to the joiner directly.
@@ -116,7 +125,7 @@ defmodule MmoLite.Floor do
 
       true ->
         next_floor = state.floor_num + 1
-        Players.update(token, &%{&1 | floor: next_floor, position: {0, 0}})
+        Players.update(token, &%{&1 | floor: next_floor, position: nil})
         {:reply, {:ok, next_floor}, remove_player(state, token)}
     end
   end
@@ -200,7 +209,8 @@ defmodule MmoLite.Floor do
   end
 
   defp handle_non_kill(state, _token, player, :flee, roll) do
-    {:reply, %{outcome: :flee, position: Wire.cell(player.position), roll: roll}, broadcast(state)}
+    {:reply, %{outcome: :flee, position: Wire.cell(player.position), roll: roll},
+     broadcast(state)}
   end
 
   defp handle_non_kill(state, token, player, :loss, roll) do
@@ -224,18 +234,19 @@ defmodule MmoLite.Floor do
       target_floor = max(player.floor - 1, 0)
 
       if target_floor == state.floor_num do
-        Players.update(token, &%{&1 | hearts: new_hearts, position: state.maze.entry})
+        safe_cell = spawn_cell(state)
+        Players.update(token, &%{&1 | hearts: new_hearts, position: safe_cell})
 
         result = %{
           outcome: :loss,
           roll: roll,
           hearts: new_hearts,
-          position: Wire.cell(state.maze.entry)
+          position: Wire.cell(safe_cell)
         }
 
         {:reply, result, broadcast(state)}
       else
-        Players.update(token, &%{&1 | hearts: new_hearts, floor: target_floor, position: {0, 0}})
+        Players.update(token, &%{&1 | hearts: new_hearts, floor: target_floor, position: nil})
         result = %{outcome: :loss, roll: roll, hearts: new_hearts, transfer_to: target_floor}
         {:reply, result, remove_player(state, token)}
       end
@@ -246,6 +257,11 @@ defmodule MmoLite.Floor do
 
   defp find_monster_at(state, position),
     do: Enum.find(Map.values(state.monsters), &(&1.position == position))
+
+  # A random walkable cell that isn't currently sitting under a monster —
+  # used for initial spawns, floor-transfer arrivals, and same-floor
+  # heart-loss respawns, so players don't land on top of a forced fight.
+  defp spawn_cell(state), do: Maze.random_cell(state.maze, &(find_monster_at(state, &1) != nil))
 
   defp player_positions(state) do
     state.players

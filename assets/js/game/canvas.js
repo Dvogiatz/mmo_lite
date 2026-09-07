@@ -1,4 +1,7 @@
-const GRID_SIZE = 10
+// Matches the server's vision radius (MmoLite.Config.vision_radius/0 = 6):
+// diameter 2*6+1 = 13 cells, so every tile the server sends is actually
+// rendered instead of clipped at the canvas edge.
+const GRID_SIZE = 13
 
 function key([x, y]) {
   return `${x},${y}`

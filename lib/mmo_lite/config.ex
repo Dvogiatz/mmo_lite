@@ -8,14 +8,17 @@ defmodule MmoLite.Config do
 
   @maze_width 21
   @maze_height 21
-  @braid_percent 0.3
+  # Higher than a "classic" maze's ~10-20% — knocks out most dead ends so
+  # the floor plays more like an open layout with loops (players need an
+  # escape route around a monster, not just one dead-end corridor into it).
+  @braid_percent 0.6
 
   @starting_hearts 5
   @max_hearts 10
 
-  @vision_radius 4
+  @vision_radius 6
 
-  @monster_pool_size 8
+  @monster_pool_size 14
   @monster_respawn_ms 15_000
   @monster_armor_max_bonus 5
 

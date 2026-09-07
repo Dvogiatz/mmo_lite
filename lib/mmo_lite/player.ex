@@ -25,7 +25,10 @@ defmodule MmoLite.Player do
       token: token,
       name: name,
       floor: 0,
-      position: {0, 0},
+      # nil means "not placed yet" — MmoLite.Floor assigns a random walkable
+      # spawn cell on join, rather than everyone funneling through one fixed
+      # corner.
+      position: nil,
       level: 1,
       xp: 0,
       hearts: Config.starting_hearts(),
@@ -37,18 +40,31 @@ defmodule MmoLite.Player do
 
   @doc "Total offensive power, including any still-active Killing Spree buff."
   def power(%__MODULE__{} = player) do
-    MmoLite.Combat.player_power(player.level, MmoLite.Loot.total_damage(player.equipment), buff_damage(player))
+    MmoLite.Combat.player_power(
+      player.level,
+      MmoLite.Loot.total_damage(player.equipment),
+      buff_damage(player)
+    )
   end
 
   def buff_damage(%__MODULE__{buff: nil}), do: 0
 
   def buff_damage(%__MODULE__{buff: %{expires_at: expires_at}}) do
-    if System.monotonic_time(:millisecond) < expires_at, do: Config.killing_spree_damage(), else: 0
+    if System.monotonic_time(:millisecond) < expires_at,
+      do: Config.killing_spree_damage(),
+      else: 0
   end
 
   @doc "Resets to a brand-new run on floor 0 with default hearts/equipment — the last-heart death penalty."
   def full_reset(%__MODULE__{} = player) do
-    %{player | floor: 0, position: {0, 0}, hearts: Config.starting_hearts(), equipment: [], buff: nil}
+    %{
+      player
+      | floor: 0,
+        position: nil,
+        hearts: Config.starting_hearts(),
+        equipment: [],
+        buff: nil
+    }
   end
 
   @doc "Whether the player's Killing Spree buff is currently active."
