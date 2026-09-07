@@ -1,6 +1,10 @@
 defmodule MmoLiteWeb.Endpoint do
   use Phoenix.Endpoint, otp_app: :mmo_lite
 
+  socket "/mmo_lite/socket", MmoLiteWeb.UserSocket,
+    websocket: true,
+    longpoll: false
+
   # Serve at "/mmo_lite" the static files from "priv/static" directory —
   # mounted under the project's nginx path prefix, not "/", since nginx
   # forwards the full "/mmo_lite/..." path unchanged (no stripping).
