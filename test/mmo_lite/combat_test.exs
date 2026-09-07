@@ -7,8 +7,12 @@ defmodule MmoLite.CombatTest do
     assert Combat.resolve(10, 5) == {:win, nil}
   end
 
-  test "equal power forces a last-hope roll" do
-    assert {:loss, 1} = Combat.resolve(5, 5, 1)
+  test "a tie favors the player: rolls 2-6 win, only a 1 loses" do
+    for roll <- 2..6 do
+      assert Combat.resolve(5, 5, roll) == {:tie_win, roll}
+    end
+
+    assert Combat.resolve(5, 5, 1) == {:loss, 1}
   end
 
   test "weaker player still wins on a roll of 6 (upset win)" do
@@ -27,6 +31,7 @@ defmodule MmoLite.CombatTest do
 
   test "kill?/1 is true only for win outcomes" do
     assert Combat.kill?(:win)
+    assert Combat.kill?(:tie_win)
     assert Combat.kill?(:upset_win)
     refute Combat.kill?(:flee)
     refute Combat.kill?(:loss)

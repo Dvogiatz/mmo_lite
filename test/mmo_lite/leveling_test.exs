@@ -7,14 +7,21 @@ defmodule MmoLite.LevelingTest do
     assert Leveling.levels_gained(10, 1) == 1
   end
 
-  test "levels_gained scales when the monster heavily outlevels the player" do
+  test "a monster at or below the player's level still only grants the base 1" do
+    assert Leveling.levels_gained(5, 5) == 1
+    assert Leveling.levels_gained(5, 9) == 1
+  end
+
+  test "one extra level per full 5-level gap the monster is above the player" do
     assert Leveling.levels_gained(5, 10) == 2
+    assert Leveling.levels_gained(5, 14) == 2
+    assert Leveling.levels_gained(5, 15) == 3
     assert Leveling.levels_gained(5, 25) == 5
   end
 
-  test "levels_gained is capped at the configured sanity limit" do
-    cap = MmoLite.Config.max_levels_per_kill()
-    assert Leveling.levels_gained(1, 1000) == cap
+  test "levels_gained is not capped — scales linearly with the level gap" do
+    assert Leveling.levels_gained(1, 51) == 11
+    assert Leveling.levels_gained(1, 1000) == 200
   end
 
   test "apply_kill grants +1 heart per level gained, capped at max_hearts" do

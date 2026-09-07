@@ -22,8 +22,6 @@ defmodule MmoLite.Config do
   @monster_respawn_ms 15_000
   @monster_armor_max_bonus 5
 
-  @max_levels_per_kill 5
-
   @reap_interval_ms 60_000
   @reap_timeout_ms 5 * 60_000
 
@@ -44,8 +42,6 @@ defmodule MmoLite.Config do
   def monster_pool_size, do: @monster_pool_size
   def monster_respawn_ms, do: @monster_respawn_ms
   def monster_armor_max_bonus, do: @monster_armor_max_bonus
-
-  def max_levels_per_kill, do: @max_levels_per_kill
 
   def reap_interval_ms, do: @reap_interval_ms
   def reap_timeout_ms, do: @reap_timeout_ms

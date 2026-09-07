@@ -28,6 +28,14 @@ function describeOutcome(result, ui) {
       )
       return
 
+    case "tie_win":
+      ui.log(
+        `Won an evenly-matched fight (rolled ${result.roll})! Defeated a Lv.${result.monster.level} ` +
+          `monster — +${result.levels_gained} level(s), now Lv.${result.level}.`,
+        "win"
+      )
+      return
+
     case "upset_win":
       ui.log(
         `Upset victory (rolled 6)! Defeated a Lv.${result.monster.level} monster — ` +
