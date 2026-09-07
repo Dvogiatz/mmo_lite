@@ -11,8 +11,10 @@ defmodule MmoLite.Application do
       MmoLiteWeb.Telemetry,
       {DNSCluster, query: Application.get_env(:mmo_lite, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: MmoLite.PubSub},
-      # Start a worker by calling: MmoLite.Worker.start_link(arg)
-      # {MmoLite.Worker, arg},
+      MmoLite.Players,
+      {Registry, keys: :unique, name: MmoLite.FloorRegistry},
+      MmoLite.FloorSupervisor,
+      MmoLite.Reaper,
       # Start to serve requests, typically the last entry
       MmoLiteWeb.Endpoint
     ]
