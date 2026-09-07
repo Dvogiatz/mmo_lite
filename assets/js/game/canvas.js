@@ -145,6 +145,14 @@ export class GameRenderer {
     ctx.beginPath()
     ctx.arc(x, y, cellPx * 0.25, 0, Math.PI * 2)
     ctx.fill()
+
+    const label = `${player.name} (Lv.${player.level})`
+    ctx.font = `${Math.floor(cellPx * 0.24)}px sans-serif`
+    ctx.textAlign = "center"
+    ctx.fillStyle = "#000"
+    ctx.fillText(label, x, y - cellPx * 0.35 + 1)
+    ctx.fillStyle = "#fff"
+    ctx.fillText(label, x, y - cellPx * 0.35)
   }
 
   drawSelf(half) {

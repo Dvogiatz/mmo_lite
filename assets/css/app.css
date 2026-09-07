@@ -62,30 +62,57 @@ body {
   color: var(--text-dim);
 }
 
+#player-name-badge {
+  font-size: 15px;
+  font-weight: 600;
+  padding: 2px 2px 6px;
+}
+
 #hearts {
-  font-size: 18px;
-  letter-spacing: 2px;
+  display: flex;
+  gap: 4px;
+  margin-bottom: 4px;
+}
+
+.heart {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.heart.full {
+  background: var(--danger);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.3) inset;
+}
+
+.heart.empty {
+  background: transparent;
+  border: 2px solid var(--panel-border);
+}
+
+#hearts-count {
+  font-size: 12px;
+  color: var(--text-dim);
 }
 
 #level-xp {
   display: flex;
   justify-content: space-between;
+  align-items: baseline;
   font-size: 13px;
   margin-bottom: 6px;
 }
 
-#xp-bar-track {
-  height: 6px;
-  background: #2a2c36;
-  border-radius: 3px;
-  overflow: hidden;
+#xp-value {
+  color: var(--text-dim);
+  cursor: help;
 }
 
-#xp-bar-fill {
-  height: 100%;
-  background: var(--accent);
-  width: 0%;
-  transition: width 0.2s ease;
+#power-value {
+  font-size: 13px;
+  color: var(--gold);
+  cursor: help;
 }
 
 #buff-indicator {

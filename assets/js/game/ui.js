@@ -1,8 +1,5 @@
 const el = (id) => document.getElementById(id)
 
-const HEART_FULL = "❤"
-const HEART_EMPTY = "🖤"
-
 export class GameUI {
   constructor() {
     this.buffExpiresAtLocal = null
@@ -33,16 +30,31 @@ export class GameUI {
 
   // -- player stat panel ------------------------------------------------
 
+  setName(name) {
+    el("player-name-badge").textContent = name
+  }
+
   updatePlayer(player) {
-    el("hearts").textContent =
-      HEART_FULL.repeat(Math.max(player.hearts, 0)) +
-      HEART_EMPTY.repeat(Math.max(player.max_hearts - player.hearts, 0))
+    const heartsRow = el("hearts")
+    heartsRow.innerHTML = ""
+    for (let i = 0; i < player.max_hearts; i++) {
+      const dot = document.createElement("span")
+      dot.className = i < player.hearts ? "heart full" : "heart empty"
+      heartsRow.appendChild(dot)
+    }
+    el("hearts-count").textContent = `${player.hearts} / ${player.max_hearts}`
 
     el("level-value").textContent = `Lv. ${player.level}`
     el("xp-value").textContent = `${player.xp} XP`
-    // There's no fixed level-up threshold in this game (see spec) — the bar
-    // is a lightweight rolling indicator, not tied to a specific max.
-    el("xp-bar-fill").style.width = `${Math.min(player.xp % 100, 100)}%`
+
+    // Total attack power (level + equipment + active buff) — matches
+    // MmoLite.Player.power/1 on the server, which decides combat outcomes
+    // against a monster's (level + armor). A tie here still goes to the
+    // 1d6 "last hope" roll, same as being weaker — it's not an auto-win.
+    const equipmentDamage = player.equipment.reduce((sum, item) => sum + item.damage, 0)
+    const buffDamage = player.buff ? player.buff.damage : 0
+    const power = player.level + equipmentDamage + buffDamage
+    el("power-value").textContent = `Power: ${power}`
 
     const list = el("equipment-list")
     list.innerHTML = ""

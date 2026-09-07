@@ -2,18 +2,31 @@
   <canvas id="game-canvas" width="400" height="400"></canvas>
 
   <div id="side-panel">
+    <div id="player-name-badge"></div>
+
     <div class="panel-box">
       <h3>Hearts</h3>
       <div id="hearts"></div>
+      <div id="hearts-count"></div>
     </div>
 
     <div class="panel-box">
       <h3>Level</h3>
       <div id="level-xp">
         <span id="level-value">Lv. 1</span>
-        <span id="xp-value">0 / 0 XP</span>
+        <span
+          id="xp-value"
+          title="Total XP earned — a lifetime counter, not a bar to fill. Killing a monster grants a level directly (more for a much higher-level monster); XP doesn't gate that."
+        >
+          0 XP
+        </span>
       </div>
-      <div id="xp-bar-track"><div id="xp-bar-fill"></div></div>
+      <div
+        id="power-value"
+        title="Your attack power: level + equipment damage + active buff. Compare this to a monster's level before engaging it — a tie still goes to the 1d6 roll, it's not an automatic win."
+      >
+        Power: 1
+      </div>
     </div>
 
     <div id="buff-indicator" class="panel-box">
@@ -41,7 +54,13 @@
   <div id="name-overlay" class="hidden">
     <div id="name-card">
       <h2>Enter the maze</h2>
-      <input id="name-input" type="text" maxlength="20" placeholder="Your name" autocomplete="off" />
+      <input
+        id="name-input"
+        type="text"
+        maxlength="20"
+        placeholder="Your name"
+        autocomplete="off"
+      />
       <button id="name-submit">Play</button>
     </div>
   </div>

@@ -21,11 +21,19 @@ function describeOutcome(result, ui) {
       return
 
     case "win":
-      ui.log(`Defeated a Lv.${result.monster.level} monster — found ${result.loot.name}!`, "win")
+      ui.log(
+        `Defeated a Lv.${result.monster.level} monster — found ${result.loot.name}! ` +
+          `+${result.levels_gained} level(s), now Lv.${result.level}.`,
+        "win"
+      )
       return
 
     case "upset_win":
-      ui.log(`Upset victory (rolled 6)! Defeated a Lv.${result.monster.level} monster.`, "win")
+      ui.log(
+        `Upset victory (rolled 6)! Defeated a Lv.${result.monster.level} monster — ` +
+          `+${result.levels_gained} level(s), now Lv.${result.level}.`,
+        "win"
+      )
       return
 
     case "flee":
@@ -66,6 +74,7 @@ async function main() {
   async function join(params) {
     const reply = await conn.connect(params)
     ui.hideNameOverlay()
+    ui.setName(reply.name)
     ui.updatePlayer(reply)
     renderer.applyStateUpdate(reply.visible)
     updateDoorPrompt()
