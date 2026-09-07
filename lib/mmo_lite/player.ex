@@ -1,0 +1,56 @@
+defmodule MmoLite.Player do
+  @moduledoc """
+  A player's persistent (in-memory) state, keyed by session token.
+  """
+
+  alias MmoLite.Config
+
+  defstruct [
+    :token,
+    :name,
+    :floor,
+    :position,
+    :level,
+    :xp,
+    :hearts,
+    :equipment,
+    :buff,
+    :last_seen
+  ]
+
+  @type t :: %__MODULE__{}
+
+  def new(token, name) do
+    %__MODULE__{
+      token: token,
+      name: name,
+      floor: 0,
+      position: {0, 0},
+      level: 1,
+      xp: 0,
+      hearts: Config.starting_hearts(),
+      equipment: [],
+      buff: nil,
+      last_seen: System.monotonic_time(:millisecond)
+    }
+  end
+
+  @doc "Total offensive power, including any still-active Killing Spree buff."
+  def power(%__MODULE__{} = player) do
+    MmoLite.Combat.player_power(player.level, MmoLite.Loot.total_damage(player.equipment), buff_damage(player))
+  end
+
+  def buff_damage(%__MODULE__{buff: nil}), do: 0
+
+  def buff_damage(%__MODULE__{buff: %{expires_at: expires_at}}) do
+    if System.monotonic_time(:millisecond) < expires_at, do: Config.killing_spree_damage(), else: 0
+  end
+
+  @doc "Resets to a brand-new run on floor 0 with default hearts/equipment — the last-heart death penalty."
+  def full_reset(%__MODULE__{} = player) do
+    %{player | floor: 0, position: {0, 0}, hearts: Config.starting_hearts(), equipment: [], buff: nil}
+  end
+
+  @doc "Whether the player's Killing Spree buff is currently active."
+  def buff_active?(%__MODULE__{} = player), do: buff_damage(player) > 0
+end
