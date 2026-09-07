@@ -1,0 +1,208 @@
+:root {
+  color-scheme: dark;
+  --bg: #14151a;
+  --panel-bg: #1d1f27;
+  --panel-border: #2e313d;
+  --text: #e8e9ee;
+  --text-dim: #8b8fa3;
+  --accent: #5b8cff;
+  --danger: #ff5c5c;
+  --gold: #e0b84b;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+#game-root {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 16px;
+  padding: 16px;
+  min-height: 100vh;
+}
+
+#game-canvas {
+  background: #0a0b0e;
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+  image-rendering: pixelated;
+}
+
+#side-panel {
+  width: 240px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.panel-box {
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.panel-box h3 {
+  margin: 0 0 8px;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-dim);
+}
+
+#hearts {
+  font-size: 18px;
+  letter-spacing: 2px;
+}
+
+#level-xp {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  margin-bottom: 6px;
+}
+
+#xp-bar-track {
+  height: 6px;
+  background: #2a2c36;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+#xp-bar-fill {
+  height: 100%;
+  background: var(--accent);
+  width: 0%;
+  transition: width 0.2s ease;
+}
+
+#buff-indicator {
+  display: none;
+  align-items: center;
+  gap: 6px;
+  color: var(--gold);
+  font-size: 13px;
+}
+
+#buff-indicator.active {
+  display: flex;
+}
+
+#equipment-list,
+#combat-log {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: 13px;
+  color: var(--text-dim);
+  max-height: 160px;
+  overflow-y: auto;
+}
+
+#equipment-list li,
+#combat-log li {
+  padding: 3px 0;
+  border-bottom: 1px solid var(--panel-border);
+}
+
+#combat-log li.win {
+  color: var(--accent);
+}
+
+#combat-log li.loss {
+  color: var(--danger);
+}
+
+#combat-log li.flee {
+  color: var(--text-dim);
+}
+
+#chat-panel-placeholder {
+  opacity: 0.35;
+  font-size: 12px;
+  text-align: center;
+  padding: 8px;
+}
+
+#name-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 11, 14, 0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+}
+
+#name-overlay.hidden {
+  display: none;
+}
+
+#name-card {
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  padding: 28px 32px;
+  width: 280px;
+  text-align: center;
+}
+
+#name-card h2 {
+  margin-top: 0;
+  font-size: 18px;
+}
+
+#name-input {
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--panel-border);
+  background: #0a0b0e;
+  color: var(--text);
+  font-size: 14px;
+  margin: 12px 0;
+}
+
+#name-submit {
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 6px;
+  border: none;
+  background: var(--accent);
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+#name-submit:hover {
+  filter: brightness(1.1);
+}
+
+#door-prompt {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  padding: 10px 16px;
+  font-size: 13px;
+  display: none;
+}
+
+#door-prompt.visible {
+  display: block;
+}

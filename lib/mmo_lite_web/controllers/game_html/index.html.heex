@@ -1,0 +1,48 @@
+<div id="game-root">
+  <canvas id="game-canvas" width="400" height="400"></canvas>
+
+  <div id="side-panel">
+    <div class="panel-box">
+      <h3>Hearts</h3>
+      <div id="hearts"></div>
+    </div>
+
+    <div class="panel-box">
+      <h3>Level</h3>
+      <div id="level-xp">
+        <span id="level-value">Lv. 1</span>
+        <span id="xp-value">0 / 0 XP</span>
+      </div>
+      <div id="xp-bar-track"><div id="xp-bar-fill"></div></div>
+    </div>
+
+    <div id="buff-indicator" class="panel-box">
+      <span>⚔️ Killing Spree</span>
+      <span id="buff-timer"></span>
+    </div>
+
+    <div class="panel-box">
+      <h3>Equipment</h3>
+      <ul id="equipment-list"></ul>
+    </div>
+
+    <div class="panel-box">
+      <h3>Log</h3>
+      <ul id="combat-log"></ul>
+    </div>
+
+    <div class="panel-box" id="chat-panel-placeholder">
+      Chat coming in v2
+    </div>
+  </div>
+
+  <div id="door-prompt"></div>
+
+  <div id="name-overlay" class="hidden">
+    <div id="name-card">
+      <h2>Enter the maze</h2>
+      <input id="name-input" type="text" maxlength="20" placeholder="Your name" autocomplete="off" />
+      <button id="name-submit">Play</button>
+    </div>
+  </div>
+</div>
