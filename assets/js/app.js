@@ -69,7 +69,10 @@ async function main() {
     updateDoorPrompt()
   })
 
-  conn.on("player_update", (payload) => ui.updatePlayer(payload))
+  conn.on("player_update", (payload) => {
+    ui.updatePlayer(payload)
+    ui.setFloor(payload.floor)
+  })
 
   function updateDoorPrompt() {
     if (renderer.isOnDoor()) {
@@ -83,6 +86,7 @@ async function main() {
     const reply = await conn.connect(params)
     ui.hideNameOverlay()
     ui.setName(reply.name)
+    ui.setFloor(reply.floor)
     ui.updatePlayer(reply)
     renderer.applyStateUpdate(reply.visible)
     updateDoorPrompt()

@@ -34,6 +34,10 @@ export class GameUI {
     el("player-name-badge").textContent = name
   }
 
+  setFloor(floor) {
+    el("floor-value").textContent = floor
+  }
+
   updatePlayer(player) {
     const heartsRow = el("hearts")
     heartsRow.innerHTML = ""

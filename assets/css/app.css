@@ -32,6 +32,24 @@ body {
   min-height: 100vh;
 }
 
+#canvas-column {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+#floor-header {
+  align-self: center;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  color: var(--text);
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  padding: 6px 20px;
+}
+
 #game-canvas {
   background: #0a0b0e;
   border: 1px solid var(--panel-border);
