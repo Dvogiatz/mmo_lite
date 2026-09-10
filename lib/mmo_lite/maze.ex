@@ -58,8 +58,8 @@ defmodule MmoLite.Maze do
   both the fog-of-war visibility set and the payload-size limiter, since
   the server only ever sends tile/monster/player data for cells in here.
   """
-  def visible_cells(%__MODULE__{} = maze, origin, radius) do
-    bfs(maze, origin, radius)
+  def visible_cells(%__MODULE__{cells: cells}, origin, radius) do
+    cells |> bfs_distances(origin, radius) |> Map.keys() |> MapSet.new()
   end
 
   @doc "Tile data (open directions) for a list of cells, for sending to a client."
@@ -166,14 +166,19 @@ defmodule MmoLite.Maze do
 
   # -- BFS -----------------------------------------------------------------
 
-  defp bfs_distances(cells, origin) do
-    do_bfs(cells, :queue.in({origin, 0}, :queue.new()), %{origin => 0})
+  # Stops expanding past `max_dist`. Integers always compare less than atoms,
+  # so the default `:infinity` walks the whole maze.
+  defp bfs_distances(cells, origin, max_dist \\ :infinity) do
+    do_bfs(cells, :queue.in({origin, 0}, :queue.new()), %{origin => 0}, max_dist)
   end
 
-  defp do_bfs(cells, queue, distances) do
+  defp do_bfs(cells, queue, distances, max_dist) do
     case :queue.out(queue) do
       {:empty, _} ->
         distances
+
+      {{:value, {_cell, dist}}, rest_queue} when dist >= max_dist ->
+        do_bfs(cells, rest_queue, distances, max_dist)
 
       {{:value, {cell, dist}}, rest_queue} ->
         open_dirs = Map.get(cells, cell, MapSet.new())
@@ -189,16 +194,8 @@ defmodule MmoLite.Maze do
             end
           end)
 
-        do_bfs(cells, queue, distances)
+        do_bfs(cells, queue, distances, max_dist)
     end
-  end
-
-  defp bfs(%__MODULE__{cells: cells} = maze, origin, radius) do
-    cells
-    |> bfs_distances(origin)
-    |> Enum.filter(fn {cell, dist} -> dist <= radius and in_bounds?(maze, cell) end)
-    |> Enum.map(fn {cell, _dist} -> cell end)
-    |> MapSet.new()
   end
 
   # -- helpers ---------------------------------------------------------------

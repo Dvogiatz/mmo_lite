@@ -4,6 +4,10 @@ defmodule MmoLite.Players do
   session token. No accounts, no persistence beyond process memory — a
   token that isn't found here means "treat as a brand-new player."
 
+  Players live in a protected ETS table: `get/1` reads it directly from the
+  caller (floors and channels hit it on every move), while every write goes
+  through this process so read-modify-write updates stay serialized.
+
   Also monitors each player's channel processes (see `attach/2`), so a
   player counts as connected for as long as any of their channels is
   alive, and only disconnected players are ever reported as stale.
@@ -13,6 +17,8 @@ defmodule MmoLite.Players do
 
   alias MmoLite.Player
 
+  @table __MODULE__
+
   def start_link(opts),
     do: GenServer.start_link(__MODULE__, :ok, Keyword.put_new(opts, :name, __MODULE__))
 
@@ -20,7 +26,12 @@ defmodule MmoLite.Players do
   def create(name), do: GenServer.call(__MODULE__, {:create, name})
 
   @doc "Looks up a player by token. Returns `nil` if unknown."
-  def get(token), do: GenServer.call(__MODULE__, {:get, token})
+  def get(token) do
+    case :ets.lookup(@table, token) do
+      [{^token, player}] -> player
+      [] -> nil
+    end
+  end
 
   @doc "Updates a known player via `fun.(player) :: player`. Returns the updated player or `:error`."
   def update(token, fun), do: GenServer.call(__MODULE__, {:update, token, fun})
@@ -43,29 +54,29 @@ defmodule MmoLite.Players do
   # -- server ----------------------------------------------------------------
 
   @impl true
-  def init(:ok), do: {:ok, %{players: %{}, monitors: %{}}}
+  def init(:ok) do
+    :ets.new(@table, [:named_table, :protected, :set, read_concurrency: true])
+    {:ok, %{monitors: %{}}}
+  end
 
   @impl true
   def handle_call({:create, name}, _from, state) do
     token = generate_token()
     player = Player.new(token, name)
-    {:reply, {token, player}, put_in(state.players[token], player)}
-  end
-
-  @impl true
-  def handle_call({:get, token}, _from, state) do
-    {:reply, Map.get(state.players, token), state}
+    :ets.insert(@table, {token, player})
+    {:reply, {token, player}, state}
   end
 
   @impl true
   def handle_call({:update, token, fun}, _from, state) do
-    case Map.fetch(state.players, token) do
-      {:ok, player} ->
-        updated = fun.(player)
-        {:reply, updated, put_in(state.players[token], updated)}
-
-      :error ->
+    case get(token) do
+      nil ->
         {:reply, :error, state}
+
+      player ->
+        updated = fun.(player)
+        :ets.insert(@table, {token, updated})
+        {:reply, updated, state}
     end
   end
 
@@ -75,40 +86,50 @@ defmodule MmoLite.Players do
     connected = MapSet.new(Map.values(state.monitors))
 
     stale =
-      Enum.filter(state.players, fn {token, player} ->
-        not MapSet.member?(connected, token) and now - player.last_seen > timeout_ms
-      end)
+      :ets.foldl(
+        fn {token, player} = entry, acc ->
+          if not MapSet.member?(connected, token) and now - player.last_seen > timeout_ms,
+            do: [entry | acc],
+            else: acc
+        end,
+        [],
+        @table
+      )
 
     {:reply, stale, state}
   end
 
   @impl true
-  def handle_cast({:touch, token}, state), do: {:noreply, touch_player(state, token)}
+  def handle_cast({:touch, token}, state) do
+    touch_player(token)
+    {:noreply, state}
+  end
 
   @impl true
   def handle_cast({:attach, token, pid}, state) do
     ref = Process.monitor(pid)
-    {:noreply, touch_player(put_in(state.monitors[ref], token), token)}
+    touch_player(token)
+    {:noreply, put_in(state.monitors[ref], token)}
   end
 
   @impl true
-  def handle_cast({:delete, token}, state),
-    do: {:noreply, %{state | players: Map.delete(state.players, token)}}
+  def handle_cast({:delete, token}, state) do
+    :ets.delete(@table, token)
+    {:noreply, state}
+  end
 
   @impl true
   def handle_info({:DOWN, ref, :process, _pid, _reason}, state) do
     {token, monitors} = Map.pop(state.monitors, ref)
     # The reap timeout counts from the moment the player disconnected.
-    {:noreply, touch_player(%{state | monitors: monitors}, token)}
+    touch_player(token)
+    {:noreply, %{state | monitors: monitors}}
   end
 
-  defp touch_player(state, token) do
-    players =
-      Map.replace_lazy(state.players, token, fn player ->
-        %{player | last_seen: System.monotonic_time(:millisecond)}
-      end)
-
-    %{state | players: players}
+  defp touch_player(token) do
+    if player = get(token) do
+      :ets.insert(@table, {token, %{player | last_seen: System.monotonic_time(:millisecond)}})
+    end
   end
 
   defp generate_token, do: 16 |> :crypto.strong_rand_bytes() |> Base.url_encode64(padding: false)

@@ -63,13 +63,13 @@ defmodule MmoLite.MazeTest do
     end
   end
 
-  test "visible_cells/3 only returns cells within the given path-distance radius" do
+  test "visible_cells/3 returns exactly the cells within the given path-distance radius" do
     maze = Maze.generate(21, 21, 0.3)
-    visible = Maze.visible_cells(maze, maze.entry, 3)
-
     distances = Maze.distances_from(maze, maze.entry)
 
-    assert Enum.all?(visible, fn cell -> Map.get(distances, cell, 999) <= 3 end)
-    assert MapSet.member?(visible, maze.entry)
+    for radius <- [0, 3, 6] do
+      expected = for {cell, dist} <- distances, dist <= radius, into: MapSet.new(), do: cell
+      assert Maze.visible_cells(maze, maze.entry, radius) == expected
+    end
   end
 end

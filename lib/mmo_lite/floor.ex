@@ -57,7 +57,13 @@ defmodule MmoLite.Floor do
   def init(floor_num) do
     maze = Maze.generate(Config.maze_width(), Config.maze_height())
     monsters = floor_num |> Monsters.generate_pool(maze) |> Map.new(&{&1.id, &1})
-    {:ok, %{floor_num: floor_num, maze: maze, monsters: monsters, players: %{}}}
+
+    # The maze never changes, so every cell's field of view is computed once
+    # here rather than for every viewer on every broadcast.
+    radius = Config.vision_radius()
+    vision = Map.new(Map.keys(maze.cells), &{&1, Maze.visible_cells(maze, &1, radius)})
+
+    {:ok, %{floor_num: floor_num, maze: maze, vision: vision, monsters: monsters, players: %{}}}
   end
 
   @impl true
@@ -264,11 +270,15 @@ defmodule MmoLite.Floor do
   defp spawn_cell(state), do: Maze.random_cell(state.maze, &(find_monster_at(state, &1) != nil))
 
   defp player_positions(state) do
-    state.players
-    |> Map.keys()
-    |> Enum.map(&Players.get/1)
-    |> Enum.filter(& &1)
-    |> Enum.map(& &1.position)
+    for {_token, _pid, player} <- present_players(state), do: player.position
+  end
+
+  # Everyone connected to this floor, with their current state — fetched
+  # once per broadcast rather than once per viewer.
+  defp present_players(state) do
+    for {token, pid} <- state.players,
+        %Player{} = player <- [Players.get(token)],
+        do: {token, pid, player}
   end
 
   defp remove_player(state, token) do
@@ -282,18 +292,20 @@ defmodule MmoLite.Floor do
   end
 
   defp broadcast(state) do
-    Enum.each(state.players, fn {token, pid} ->
-      case Players.get(token) do
-        nil -> :ok
-        player -> send(pid, {:state_update, visible_state(state, token, player.position)})
-      end
+    present = present_players(state)
+
+    Enum.each(present, fn {token, pid, player} ->
+      send(pid, {:state_update, visible_state(state, token, player.position, present)})
     end)
 
     state
   end
 
-  defp visible_state(state, token, origin) do
-    visible = Maze.visible_cells(state.maze, origin, Config.vision_radius())
+  defp visible_state(state, token, origin),
+    do: visible_state(state, token, origin, present_players(state))
+
+  defp visible_state(state, token, origin, present) do
+    visible = Map.fetch!(state.vision, origin)
 
     monsters =
       state.monsters
@@ -302,12 +314,10 @@ defmodule MmoLite.Floor do
       |> Enum.map(&monster_view/1)
 
     players =
-      state.players
-      |> Map.keys()
-      |> Enum.reject(&(&1 == token))
-      |> Enum.map(&Players.get/1)
-      |> Enum.filter(&(&1 && MapSet.member?(visible, &1.position)))
-      |> Enum.map(&player_view/1)
+      for {other, _pid, player} <- present,
+          other != token,
+          MapSet.member?(visible, player.position),
+          do: player_view(player)
 
     %{
       floor: state.floor_num,
