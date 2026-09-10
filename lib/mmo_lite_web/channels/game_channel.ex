@@ -27,7 +27,7 @@ defmodule MmoLiteWeb.GameChannel do
       token = socket.assigns.token
       floor = Players.get(token).floor
       result = Floor.move(floor, token, dir_atom)
-      maybe_transfer(token, result)
+      maybe_transfer(socket, token, result)
       Players.touch(token)
       push(socket, "player_update", player_update_payload(token))
       {:reply, {:ok, result}, assign(socket, :last_move_at, now)}
@@ -43,10 +43,9 @@ defmodule MmoLiteWeb.GameChannel do
 
     case Floor.enter_door(floor, token) do
       {:ok, next_floor} ->
-        FloorSupervisor.ensure_started(next_floor)
-        {:ok, visible} = Floor.join(next_floor, token, self())
+        enter_floor(socket, token, next_floor)
         push(socket, "player_update", player_update_payload(token))
-        {:reply, {:ok, %{floor: next_floor, visible: visible}}, socket}
+        {:reply, {:ok, %{floor: next_floor}}, socket}
 
       {:error, :level_too_low, required} ->
         {:reply, {:error, %{reason: "level_too_low", required: required}}, socket}
@@ -124,13 +123,18 @@ defmodule MmoLiteWeb.GameChannel do
   defp parse_dir("right"), do: {:ok, :east}
   defp parse_dir(_), do: {:error, :invalid_direction}
 
-  defp maybe_transfer(token, %{transfer_to: next_floor}) do
-    FloorSupervisor.ensure_started(next_floor)
-    {:ok, visible} = Floor.join(next_floor, token, self())
-    send(self(), {:state_update, visible})
-  end
+  defp maybe_transfer(socket, token, %{transfer_to: next_floor}),
+    do: enter_floor(socket, token, next_floor)
 
-  defp maybe_transfer(_token, _result), do: :ok
+  defp maybe_transfer(_socket, _token, _result), do: :ok
+
+  # Joins `floor` (starting it if needed) and pushes the arriving player's
+  # first view of it — the floor itself only notifies players already there.
+  defp enter_floor(socket, token, floor) do
+    FloorSupervisor.ensure_started(floor)
+    {:ok, visible} = Floor.join(floor, token, self())
+    push(socket, "state_update", visible)
+  end
 
   defp player_update_payload(token) do
     player = Players.get(token)

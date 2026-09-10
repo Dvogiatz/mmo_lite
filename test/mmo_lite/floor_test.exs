@@ -92,6 +92,29 @@ defmodule MmoLite.FloorTest do
     assert_receive {:state_update, %{players: [%{name: "Newcomer"}]}}
   end
 
+  test "players who can't see a move are not sent an update", %{floor: floor, token: token} do
+    [{pid, _}] = Registry.lookup(MmoLite.FloorRegistry, floor)
+    %{maze: maze} = :sys.get_state(pid)
+    # No monsters, so the move can't become a fight that respawns anyone.
+    :sys.replace_state(pid, &%{&1 | monsters: %{}})
+
+    # The door is the cell farthest from the entry, well out of vision range.
+    Players.update(token, &%{&1 | floor: floor, position: maze.entry})
+    {:ok, _visible} = Floor.join(floor, token, self())
+
+    {far_token, _player} = Players.create("Faraway")
+    Players.update(far_token, &%{&1 | floor: floor, position: maze.door})
+    {:ok, _visible} = Floor.join(floor, far_token, spawn(fn -> Process.sleep(:infinity) end))
+    flush_mailbox()
+
+    dir =
+      Enum.find([:north, :south, :east, :west], &match?({:ok, _}, Maze.move(maze, maze.door, &1)))
+
+    assert %{outcome: :moved} = Floor.move(floor, far_token, dir)
+    # Any update would have been sent before the move's reply.
+    refute_received {:state_update, _}
+  end
+
   defp flush_mailbox do
     receive do
       _ -> flush_mailbox()

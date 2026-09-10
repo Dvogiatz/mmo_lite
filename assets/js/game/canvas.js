@@ -3,9 +3,11 @@
 // rendered instead of clipped at the canvas edge.
 const GRID_SIZE = 13
 
-function key([x, y]) {
-  return `${x},${y}`
-}
+// Open-direction bits in each tile's mask (MmoLite.Wire.tiles/1).
+const NORTH = 1
+const EAST = 2
+const SOUTH = 4
+const WEST = 8
 
 export class GameRenderer {
   constructor(canvas) {
@@ -45,9 +47,9 @@ export class GameRenderer {
     this.players = payload.players || []
 
     this.currentVisible = new Set()
-    for (const tile of payload.tiles || []) {
-      const k = key(tile.cell)
-      this.seenTiles.set(k, tile.open)
+    for (const [x, y, open] of payload.tiles || []) {
+      const k = `${x},${y}`
+      this.seenTiles.set(k, open)
       this.currentVisible.add(k)
     }
 
@@ -68,7 +70,7 @@ export class GameRenderer {
         const worldY = oy + (gy - half)
         const k = `${worldX},${worldY}`
         const open = this.seenTiles.get(k)
-        if (!open) continue
+        if (open === undefined) continue
 
         const visible = this.currentVisible.has(k)
         const px = gx * cellPx
@@ -102,22 +104,21 @@ export class GameRenderer {
 
   drawWalls(px, py, size, open) {
     const { ctx } = this
-    const dirs = new Set(open)
 
     ctx.beginPath()
-    if (!dirs.has("north")) {
+    if (!(open & NORTH)) {
       ctx.moveTo(px, py)
       ctx.lineTo(px + size, py)
     }
-    if (!dirs.has("south")) {
+    if (!(open & SOUTH)) {
       ctx.moveTo(px, py + size)
       ctx.lineTo(px + size, py + size)
     }
-    if (!dirs.has("west")) {
+    if (!(open & WEST)) {
       ctx.moveTo(px, py)
       ctx.lineTo(px, py + size)
     }
-    if (!dirs.has("east")) {
+    if (!(open & EAST)) {
       ctx.moveTo(px + size, py)
       ctx.lineTo(px + size, py + size)
     }

@@ -62,11 +62,9 @@ defmodule MmoLite.Maze do
     cells |> bfs_distances(origin, radius) |> Map.keys() |> MapSet.new()
   end
 
-  @doc "Tile data (open directions) for a list of cells, for sending to a client."
+  @doc "Tile data (the set of open directions) for the given cells, for sending to a client."
   def tiles(%__MODULE__{cells: cells}, cell_list) do
-    for cell <- cell_list, into: %{} do
-      {cell, MapSet.to_list(Map.get(cells, cell, MapSet.new()))}
-    end
+    for cell <- cell_list, into: %{}, do: {cell, Map.get(cells, cell, MapSet.new())}
   end
 
   @doc "Picks a random walkable cell, optionally excluding cells matched by `reject?`."

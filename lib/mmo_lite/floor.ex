@@ -80,20 +80,21 @@ defmodule MmoLite.Floor do
         # all funnel through the same starting corridor.
         position = spawn_cell(state)
         Players.update(token, &%{&1 | position: position})
-        state = broadcast(state)
+        state = broadcast(state, [position], exclude: token)
         {:reply, {:ok, visible_state(state, token, position)}, state}
 
       player ->
         # Broadcast first so everyone else already on this floor learns a
         # new player appeared nearby, then reply to the joiner directly.
-        state = broadcast(state)
+        state = broadcast(state, [player.position], exclude: token)
         {:reply, {:ok, visible_state(state, token, player.position)}, state}
     end
   end
 
   @impl true
   def handle_call({:leave, token}, _from, state) do
-    state = remove_player(state, token)
+    player = Players.get(token)
+    state = remove_player(state, token, player && player.position)
     {:reply, :ok, state}
   end
 
@@ -109,7 +110,8 @@ defmodule MmoLite.Floor do
         case find_monster_at(state, dest) do
           nil ->
             Players.update(token, &%{&1 | position: dest})
-            {:reply, %{outcome: :moved, position: Wire.cell(dest)}, broadcast(state)}
+            state = broadcast(state, [player.position, dest], include: token)
+            {:reply, %{outcome: :moved, position: Wire.cell(dest)}, state}
 
           monster ->
             handle_combat(state, token, player, monster, dest)
@@ -132,7 +134,7 @@ defmodule MmoLite.Floor do
       true ->
         next_floor = state.floor_num + 1
         Players.update(token, &%{&1 | floor: next_floor, position: nil})
-        {:reply, {:ok, next_floor}, remove_player(state, token)}
+        {:reply, {:ok, next_floor}, remove_player(state, token, player.position)}
     end
   end
 
@@ -145,7 +147,7 @@ defmodule MmoLite.Floor do
       )
 
     state = %{state | monsters: Map.put(state.monsters, monster.id, monster)}
-    {:noreply, broadcast(state)}
+    {:noreply, broadcast(state, [monster.position])}
   end
 
   @impl true
@@ -197,7 +199,7 @@ defmodule MmoLite.Floor do
       |> tap(fn _ ->
         Process.send_after(self(), :respawn_monster, Config.monster_respawn_ms())
       end)
-      |> broadcast()
+      |> broadcast([player.position, dest], include: token)
 
     result = %{
       outcome: outcome,
@@ -215,8 +217,8 @@ defmodule MmoLite.Floor do
   end
 
   defp handle_non_kill(state, _token, player, :flee, roll) do
-    {:reply, %{outcome: :flee, position: Wire.cell(player.position), roll: roll},
-     broadcast(state)}
+    # Nothing on the floor changed, so nobody needs an update.
+    {:reply, %{outcome: :flee, position: Wire.cell(player.position), roll: roll}, state}
   end
 
   defp handle_non_kill(state, token, player, :loss, roll) do
@@ -235,7 +237,7 @@ defmodule MmoLite.Floor do
         level: reset.level
       }
 
-      {:reply, result, remove_player(state, token)}
+      {:reply, result, remove_player(state, token, player.position)}
     else
       target_floor = max(player.floor - 1, 0)
 
@@ -250,11 +252,11 @@ defmodule MmoLite.Floor do
           position: Wire.cell(safe_cell)
         }
 
-        {:reply, result, broadcast(state)}
+        {:reply, result, broadcast(state, [player.position, safe_cell], include: token)}
       else
         Players.update(token, &%{&1 | hearts: new_hearts, floor: target_floor, position: nil})
         result = %{outcome: :loss, roll: roll, hearts: new_hearts, transfer_to: target_floor}
-        {:reply, result, remove_player(state, token)}
+        {:reply, result, remove_player(state, token, player.position)}
       end
     end
   end
@@ -281,31 +283,48 @@ defmodule MmoLite.Floor do
         do: {token, pid, player}
   end
 
-  defp remove_player(state, token) do
+  # `position` is where the player was standing, so anyone who could see
+  # them there learns they've gone.
+  defp remove_player(state, token, position) do
     state = %{state | players: Map.delete(state.players, token)}
 
     if map_size(state.players) == 0 do
       Process.send_after(self(), :idle_teardown, Config.floor_idle_teardown_ms())
     end
 
-    broadcast(state)
+    broadcast(state, List.wrap(position))
   end
 
-  defp broadcast(state) do
+  # Sends fresh visible state to every player on the floor who can see at
+  # least one of the `changed` cells, plus `:include` (whose own view moved),
+  # minus `:exclude` (who gets their state another way, e.g. a join reply).
+  defp broadcast(state, changed, opts \\ []) do
+    include = opts[:include]
+    exclude = opts[:exclude]
     present = present_players(state)
 
-    Enum.each(present, fn {token, pid, player} ->
+    for {token, pid, player} <- present,
+        token != exclude,
+        token == include or sees_any?(state, player.position, changed) do
       send(pid, {:state_update, visible_state(state, token, player.position, present)})
-    end)
+    end
 
     state
   end
+
+  defp sees_any?(state, origin, cells) do
+    visible = vision(state, origin)
+    Enum.any?(cells, &MapSet.member?(visible, &1))
+  end
+
+  # A player who hasn't been placed yet (nil position) sees nothing.
+  defp vision(state, origin), do: Map.get(state.vision, origin, MapSet.new())
 
   defp visible_state(state, token, origin),
     do: visible_state(state, token, origin, present_players(state))
 
   defp visible_state(state, token, origin, present) do
-    visible = Map.fetch!(state.vision, origin)
+    visible = vision(state, origin)
 
     monsters =
       state.monsters
@@ -322,7 +341,7 @@ defmodule MmoLite.Floor do
     %{
       floor: state.floor_num,
       origin: Wire.cell(origin),
-      tiles: Wire.tiles(Maze.tiles(state.maze, MapSet.to_list(visible))),
+      tiles: Wire.tiles(Maze.tiles(state.maze, visible)),
       door: if(MapSet.member?(visible, state.maze.door), do: Wire.cell(state.maze.door)),
       monsters: monsters,
       players: players
