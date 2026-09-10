@@ -8,7 +8,7 @@ defmodule MmoLiteWeb.GameChannel do
     with {:ok, token, player} <- resolve_player(params) do
       FloorSupervisor.ensure_started(player.floor)
       {:ok, visible} = Floor.join(player.floor, token, self())
-      Players.touch(token)
+      Players.attach(token, self())
 
       socket = assign(socket, :token, token)
       {:ok, join_reply(player, visible), socket}

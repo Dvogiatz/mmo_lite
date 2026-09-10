@@ -42,12 +42,27 @@ export class GameConnection {
   }
 
   // joinParams: {token} or {name}. Resolves with the join reply, rejects with the join error.
+  //
+  // After the first successful join, Phoenix transparently rejoins whenever the
+  // socket reconnects: those rejoins emit "rejoined" (with a fresh join reply) or
+  // "session_lost" (the server no longer knows this token, e.g. after a restart).
   connect(joinParams) {
+    // Tear down any previous attempt, otherwise a failed join keeps retrying
+    // in the background on its own socket.
+    this.disconnect()
+
     return new Promise((resolve, reject) => {
+      let joined = false
+
       this.socket = new Socket("/mmo_lite/socket")
       this.socket.connect()
 
-      this.channel = this.socket.channel("game:play", joinParams)
+      // Evaluated on every (re)join: once a token has been issued, an automatic
+      // rejoin resumes that player instead of creating a new one from `name`.
+      this.channel = this.socket.channel("game:play", () => {
+        const token = storedToken()
+        return token ? { token } : joinParams
+      })
 
       this.channel.on("state_update", (payload) => this.emit("state_update", payload))
       this.channel.on("player_update", (payload) => this.emit("player_update", payload))
@@ -56,32 +71,58 @@ export class GameConnection {
         .join()
         .receive("ok", (reply) => {
           if (reply.token) storeToken(reply.token)
-          resolve(reply)
+
+          if (joined) {
+            this.emit("rejoined", reply)
+          } else {
+            joined = true
+            resolve(reply)
+          }
         })
-        .receive("error", (reply) => reject(reply))
+        .receive("error", (reply) => {
+          this.disconnect()
+          if (joined) {
+            this.emit("session_lost", reply)
+          } else {
+            reject(reply)
+          }
+        })
+        .receive("timeout", () => {
+          // Once joined, Phoenix keeps retrying on its own; only fail the initial join.
+          if (!joined) {
+            this.disconnect()
+            reject({ reason: "timeout" })
+          }
+        })
+    })
+  }
+
+  isJoined() {
+    return !!this.channel && this.channel.isJoined()
+  }
+
+  move(dir) {
+    return this.push("move", { dir })
+  }
+
+  enterDoor() {
+    return this.push("enter_door", {})
+  }
+
+  push(event, payload) {
+    return new Promise((resolve, reject) => {
+      this.channel
+        .push(event, payload)
+        .receive("ok", resolve)
+        .receive("error", reject)
         .receive("timeout", () => reject({ reason: "timeout" }))
     })
   }
 
-  move(dir) {
-    return new Promise((resolve, reject) => {
-      this.channel
-        .push("move", { dir })
-        .receive("ok", resolve)
-        .receive("error", reject)
-    })
-  }
-
-  enterDoor() {
-    return new Promise((resolve, reject) => {
-      this.channel
-        .push("enter_door", {})
-        .receive("ok", resolve)
-        .receive("error", reject)
-    })
-  }
-
   disconnect() {
+    if (this.channel) this.channel.leave()
     if (this.socket) this.socket.disconnect()
+    this.channel = null
+    this.socket = null
   }
 }

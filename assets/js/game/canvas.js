@@ -17,6 +17,7 @@ export class GameRenderer {
     // Tiles ever seen persist for the dim-vs-black fog rendering; monsters
     // and players are always drawn fresh from the latest snapshot only.
     this.seenTiles = new Map()
+    this.floor = null
     this.origin = [0, 0]
     this.currentVisible = new Set()
     this.door = null
@@ -24,7 +25,20 @@ export class GameRenderer {
     this.players = []
   }
 
+  // Forget remembered tiles, e.g. when the maze they came from no longer exists.
+  reset() {
+    this.seenTiles.clear()
+    this.floor = null
+  }
+
   applyStateUpdate(payload) {
+    // Tiles are keyed by coordinates only, so a different floor's maze would
+    // otherwise show through the fog.
+    if (payload.floor !== this.floor) {
+      this.seenTiles.clear()
+      this.floor = payload.floor
+    }
+
     this.origin = payload.origin
     this.door = payload.door
     this.monsters = payload.monsters || []

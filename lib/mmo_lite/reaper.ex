@@ -1,7 +1,9 @@
 defmodule MmoLite.Reaper do
   @moduledoc """
   Periodically removes players who haven't been seen in a while (spec §1:
-  "reaps inactive players after a timeout"). A reaped token simply
+  "reaps inactive players after a timeout"). Only disconnected players are
+  eligible — someone idling with the game open is never reaped out from
+  under their live channel (see `MmoLite.Players.attach/2`). A reaped token simply
   disappears from `MmoLite.Players` — a later reconnect with that token
   won't be found and is treated as a brand-new player, per spec.
   """

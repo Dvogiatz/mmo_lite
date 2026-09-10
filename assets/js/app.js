@@ -74,6 +74,18 @@ async function main() {
     ui.setFloor(payload.floor)
   })
 
+  // The socket dropped and Phoenix rejoined on its own — resync everything.
+  conn.on("rejoined", (reply) => applyJoinReply(reply))
+
+  // A rejoin was refused: the server no longer knows this token (restart/deploy).
+  conn.on("session_lost", () => {
+    clearToken()
+    renderer.reset()
+    ui.hideDoorPrompt()
+    ui.log("Your session expired — enter a name to start a new run.", "loss")
+    ui.showNameOverlay()
+  })
+
   function updateDoorPrompt() {
     if (renderer.isOnDoor()) {
       ui.showDoorPrompt("Press E to use the door")
@@ -82,8 +94,7 @@ async function main() {
     }
   }
 
-  async function join(params) {
-    const reply = await conn.connect(params)
+  function applyJoinReply(reply) {
     ui.hideNameOverlay()
     ui.setName(reply.name)
     ui.setFloor(reply.floor)
@@ -92,12 +103,18 @@ async function main() {
     updateDoorPrompt()
   }
 
+  async function join(params) {
+    applyJoinReply(await conn.connect(params))
+  }
+
   const existingToken = storedToken()
   if (existingToken) {
     try {
       await join({ token: existingToken })
-    } catch (_err) {
-      clearToken()
+    } catch (err) {
+      // Only drop the token when the server says it's gone — a timeout
+      // shouldn't throw away a session that may still exist.
+      if (err.reason === "unknown_token") clearToken()
       ui.showNameOverlay()
     }
   } else {
@@ -115,14 +132,20 @@ async function main() {
   let moving = false
 
   document.addEventListener("keydown", async (e) => {
-    if (!conn.channel) return
+    if (!conn.isJoined() || e.target instanceof HTMLInputElement) return
 
     const dir = KEY_DIRS[e.key]
-    if (dir && !moving) {
+    if (dir) {
+      // Arrow keys would otherwise scroll the page under the board.
+      e.preventDefault()
+      if (moving) return
+
       moving = true
       try {
         const result = await conn.move(dir)
         describeOutcome(result, ui)
+      } catch (err) {
+        if (err.reason === "timeout") ui.log("The server didn't respond — try again.", "loss")
       } finally {
         moving = false
       }
@@ -130,12 +153,15 @@ async function main() {
     }
 
     if ((e.key === "e" || e.key === "Enter") && renderer.isOnDoor()) {
+      e.preventDefault()
       try {
         await conn.enterDoor()
         ui.log("Descended to the next floor.")
       } catch (err) {
         if (err.reason === "level_too_low") {
           ui.log(`The door requires level ${err.required}.`, "loss")
+        } else if (err.reason === "timeout") {
+          ui.log("The server didn't respond — try again.", "loss")
         }
       }
     }
