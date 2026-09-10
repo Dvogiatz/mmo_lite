@@ -2,6 +2,7 @@ import "phoenix_html"
 import { GameConnection, storedToken, clearToken, setNotice, takeNotice } from "./game/net"
 import { GameRenderer } from "./game/canvas"
 import { GameUI } from "./game/ui"
+import { Joystick } from "./game/joystick"
 
 const KEY_DIRS = {
   ArrowUp: "up",
@@ -18,7 +19,7 @@ const KEY_DIRS = {
 // two paced moves closer together than it allows.
 const MOVE_PACING_MARGIN_MS = 10
 
-// How often a held d-pad button re-requests its move (the queue paces it).
+// How often a held joystick direction re-requests its move (the queue paces it).
 const HOLD_REPEAT_MS = 100
 
 const TOUCH = window.matchMedia("(pointer: coarse)").matches
@@ -247,31 +248,25 @@ async function main() {
     tryEnterDoor()
   })
 
-  // On-screen d-pad (touch devices): holding a button keeps walking, like a
-  // held key — one move straight away, then repeats until it's released.
-  for (const button of document.querySelectorAll("#touch-controls [data-dir]")) {
-    const dir = button.dataset.dir
-    let repeatTimer = null
+  // Touch joystick: press anywhere on the map and drag. Holding a direction
+  // keeps walking like a held key — one move straight away, then repeats
+  // (paced by the move queue) until the finger lifts or re-centres.
+  let heldDir = null
+  let holdTimer = null
 
-    const release = () => {
-      clearInterval(repeatTimer)
-      repeatTimer = null
-      cancelRepeat(dir)
-    }
+  function holdDirection(dir) {
+    clearInterval(holdTimer)
+    holdTimer = null
+    if (heldDir) cancelRepeat(heldDir)
+    heldDir = dir
 
-    button.addEventListener("pointerdown", (e) => {
-      // Keeps focus, text selection and synthetic mouse events off the button.
-      e.preventDefault()
-      if (!conn.isJoined()) return
-
-      release()
+    if (dir && conn.isJoined()) {
       requestMove(dir, false)
-      repeatTimer = setInterval(() => requestMove(dir, true), HOLD_REPEAT_MS)
-    })
-    button.addEventListener("pointerup", release)
-    button.addEventListener("pointercancel", release)
-    button.addEventListener("pointerleave", release)
+      holdTimer = setInterval(() => requestMove(dir, true), HOLD_REPEAT_MS)
+    }
   }
+
+  new Joystick(canvas, document.getElementById("joystick"), holdDirection)
 }
 
 document.addEventListener("DOMContentLoaded", main)

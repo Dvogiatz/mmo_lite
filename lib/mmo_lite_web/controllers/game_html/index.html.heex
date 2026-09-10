@@ -3,12 +3,14 @@
     <div id="floor-header">Floor <span id="floor-value">0</span></div>
     <canvas id="game-canvas" width="650" height="650"></canvas>
 
-    <div id="touch-controls" aria-label="Movement controls">
-      <button type="button" class="dpad" data-dir="up" aria-label="Move up">▲</button>
-      <button type="button" class="dpad" data-dir="left" aria-label="Move left">◀</button>
-      <button type="button" class="dpad" data-dir="down" aria-label="Move down">▼</button>
-      <button type="button" class="dpad" data-dir="right" aria-label="Move right">▶</button>
+    <div id="joystick" aria-hidden="true">
+      <span class="joystick-arrow" data-arrow="up">▲</span>
+      <span class="joystick-arrow" data-arrow="right">▶</span>
+      <span class="joystick-arrow" data-arrow="down">▼</span>
+      <span class="joystick-arrow" data-arrow="left">◀</span>
+      <span class="joystick-knob"></span>
     </div>
+    <p id="touch-hint">Touch and drag anywhere on the map to move</p>
   </div>
 
   <div id="side-panel">
