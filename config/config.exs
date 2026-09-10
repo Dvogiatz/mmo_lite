@@ -13,6 +13,10 @@ config :mmo_lite,
 # Configures the endpoint
 config :mmo_lite, MmoLiteWeb.Endpoint,
   url: [host: "localhost"],
+  # Static files are served under the nginx path prefix (see Plug.Static in
+  # endpoint.ex), so ~p"/assets/..." resolves to /mmo_lite/assets/... — and
+  # in prod to the digested, cache-busting file from cache_manifest.json.
+  static_url: [path: "/mmo_lite"],
   adapter: Bandit.PhoenixAdapter,
   render_errors: [
     formats: [html: MmoLiteWeb.ErrorHTML, json: MmoLiteWeb.ErrorJSON],
