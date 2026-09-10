@@ -345,6 +345,7 @@ defmodule MmoLite.Floor do
       origin: Wire.cell(origin),
       tiles: Wire.tiles(Maze.tiles(state.maze, visible)),
       door: if(MapSet.member?(visible, state.maze.door), do: Wire.cell(state.maze.door)),
+      door_level: Config.door_level_requirement(state.floor_num),
       monsters: monsters,
       players: players
     }

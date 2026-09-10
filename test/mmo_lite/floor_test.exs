@@ -19,6 +19,7 @@ defmodule MmoLite.FloorTest do
     {:ok, visible} = Floor.join(floor, token, self())
 
     assert visible.floor == floor
+    assert visible.door_level == Config.door_level_requirement(floor)
     assert is_list(visible.origin)
     assert Jason.encode!(visible)
   end

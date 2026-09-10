@@ -70,6 +70,11 @@ async function main() {
   const ui = new GameUI()
   const conn = new GameConnection()
 
+  ui.onStatsChange = () => {
+    renderer.setPlayerStats({ power: ui.power(), level: ui.player.level })
+    updateDoorPrompt()
+  }
+
   // Movement: at most one move in flight plus one queued (the latest key
   // wins), so holding a key walks steadily instead of dropping key repeats.
   let moving = false
@@ -104,10 +109,18 @@ async function main() {
   })
 
   function updateDoorPrompt() {
-    if (renderer.isOnDoor()) {
+    if (!renderer.isOnDoor()) {
+      ui.hideDoorPrompt()
+      return
+    }
+
+    const level = ui.player ? ui.player.level : 0
+    const required = renderer.doorLevel
+
+    if (level >= required) {
       ui.showDoorPrompt("Press E to use the door")
     } else {
-      ui.hideDoorPrompt()
+      ui.showDoorPrompt(`The door needs Lv. ${required} — you're Lv. ${level}`)
     }
   }
 

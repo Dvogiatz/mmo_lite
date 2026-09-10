@@ -133,6 +133,37 @@ body {
   cursor: help;
 }
 
+#odds-legend {
+  display: flex;
+  gap: 10px;
+  margin-top: 6px;
+  font-size: 11px;
+  cursor: help;
+}
+
+.odds::before {
+  content: "";
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 4px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+/* Same colours as ODDS_COLORS in assets/js/game/canvas.js. */
+.odds.sure {
+  color: #4cd07d;
+}
+
+.odds.even {
+  color: #e0b84b;
+}
+
+.odds.risky {
+  color: #ff5c5c;
+}
+
 #buff-indicator {
   display: none;
   align-items: center;

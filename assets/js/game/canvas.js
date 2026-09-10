@@ -11,6 +11,10 @@ const WEST = 8
 
 const DIR_BITS = { up: NORTH, down: SOUTH, left: WEST, right: EAST }
 
+// Fight odds against a monster, per MmoLite.Combat.resolve/3: more power is
+// an outright win, equal power wins on a 2-6, less wins only on a 6.
+const ODDS_COLORS = { sure: "#4cd07d", even: "#e0b84b", risky: "#ff5c5c" }
+
 export class GameRenderer {
   constructor(canvas) {
     this.ctx = canvas.getContext("2d")
@@ -25,8 +29,16 @@ export class GameRenderer {
     this.origin = [0, 0]
     this.currentVisible = new Set()
     this.door = null
+    this.doorLevel = null
     this.monsters = []
     this.players = []
+    // The player's own {power, level}, for colouring monster odds and the door.
+    this.stats = null
+  }
+
+  setPlayerStats(stats) {
+    this.stats = stats
+    this.draw()
   }
 
   applyStateUpdate(payload) {
@@ -39,6 +51,7 @@ export class GameRenderer {
 
     this.origin = payload.origin
     this.door = payload.door
+    this.doorLevel = payload.door_level
     this.monsters = payload.monsters || []
     this.players = payload.players || []
 
@@ -82,6 +95,13 @@ export class GameRenderer {
         if (this.door && this.door[0] === worldX && this.door[1] === worldY) {
           ctx.fillStyle = visible ? "#e0b84b" : "#5a4d28"
           ctx.fillRect(px + cellPx * 0.3, py + cellPx * 0.3, cellPx * 0.4, cellPx * 0.4)
+
+          // The level needed to use it, so nobody walks over just to find it locked.
+          const unlocked = this.stats && this.stats.level >= this.doorLevel
+          ctx.fillStyle = unlocked ? ODDS_COLORS.sure : ODDS_COLORS.risky
+          ctx.font = `${Math.floor(cellPx * 0.26)}px sans-serif`
+          ctx.textAlign = "center"
+          ctx.fillText(`Lv.${this.doorLevel}`, px + cellPx / 2, py + cellPx * 0.25)
         }
       }
     }
@@ -131,8 +151,9 @@ export class GameRenderer {
     const [x, y] = this.cellCenter(monster.position[0], monster.position[1], ox, oy, half)
     const { ctx, cellPx } = this
     const r = cellPx * 0.3
+    const power = monster.level + monster.armor
 
-    ctx.fillStyle = "#ff5c5c"
+    ctx.fillStyle = this.oddsColor(power)
     ctx.beginPath()
     ctx.arc(x, y, r, 0, Math.PI * 2)
     ctx.fill()
@@ -148,7 +169,12 @@ export class GameRenderer {
     ctx.fillStyle = "#fff"
     ctx.font = `${Math.floor(cellPx * 0.28)}px sans-serif`
     ctx.textAlign = "center"
-    ctx.fillText(String(monster.level), x, y - r - 4)
+    ctx.fillText(String(power), x, y - r - 4)
+  }
+
+  oddsColor(monsterPower) {
+    if (!this.stats || this.stats.power < monsterPower) return ODDS_COLORS.risky
+    return this.stats.power > monsterPower ? ODDS_COLORS.sure : ODDS_COLORS.even
   }
 
   drawPlayer(player, ox, oy, half, color) {

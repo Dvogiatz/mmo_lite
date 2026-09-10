@@ -2,7 +2,10 @@ const el = (id) => document.getElementById(id)
 
 export class GameUI {
   constructor() {
+    this.player = null
     this.buffExpiresAtLocal = null
+    // Called whenever power or level may have changed (new stats, buff expiry).
+    this.onStatsChange = null
     this._tickTimer = setInterval(() => this.tickBuff(), 250)
   }
 
@@ -51,14 +54,6 @@ export class GameUI {
     el("level-value").textContent = `Lv. ${player.level}`
     el("xp-value").textContent = `${player.xp} XP`
 
-    // Total attack power (level + equipment + active buff) — matches
-    // MmoLite.Player.power/1 on the server, which decides combat outcomes
-    // against a monster's (level + armor). A tie here still goes to the
-    // 1d6 "last hope" roll, same as being weaker — it's not an auto-win.
-    const buffDamage = player.buff ? player.buff.damage : 0
-    const power = player.level + player.equipment_damage + buffDamage
-    el("power-value").textContent = `Power: ${power}`
-
     const list = el("equipment-list")
     list.innerHTML = ""
     if (player.equipment.length === 0) {
@@ -74,12 +69,24 @@ export class GameUI {
     }
     el("gear-total").textContent = `All loot: +${player.equipment_damage} damage`
 
-    if (player.buff) {
-      this.buffExpiresAtLocal = Date.now() + player.buff.remaining_ms
-    } else {
-      this.buffExpiresAtLocal = null
-    }
+    this.player = player
+    this.buffExpiresAtLocal = player.buff ? Date.now() + player.buff.remaining_ms : null
     this.tickBuff()
+    this.renderPower()
+  }
+
+  // Current attack power: level + all looted equipment damage + the Killing
+  // Spree buff while it lasts — the same sum as MmoLite.Player.power/1,
+  // which combat compares against a monster's level + armor.
+  power() {
+    if (!this.player) return 0
+    const buffDamage = this.buffExpiresAtLocal ? this.player.buff.damage : 0
+    return this.player.level + this.player.equipment_damage + buffDamage
+  }
+
+  renderPower() {
+    el("power-value").textContent = `Power: ${this.power()}`
+    if (this.onStatsChange) this.onStatsChange()
   }
 
   tickBuff() {
@@ -93,6 +100,7 @@ export class GameUI {
     if (remaining <= 0) {
       this.buffExpiresAtLocal = null
       indicator.classList.remove("active")
+      this.renderPower()
       return
     }
 
