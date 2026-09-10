@@ -36,6 +36,13 @@ defmodule MmoLite.FloorTest do
     end
   end
 
+  test "an unknown token is refused and not registered on the floor", %{floor: floor} do
+    assert {:error, :unknown_player} = Floor.join(floor, "no-such-token", self())
+
+    [{pid, _}] = Registry.lookup(MmoLite.FloorRegistry, floor)
+    refute Map.has_key?(:sys.get_state(pid).players, "no-such-token")
+  end
+
   test "a player standing elsewhere than the door cannot enter it", %{floor: floor, token: token} do
     Players.update(token, &%{&1 | floor: floor})
     {:ok, _visible} = Floor.join(floor, token, self())

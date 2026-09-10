@@ -68,26 +68,18 @@ defmodule MmoLite.Floor do
 
   @impl true
   def handle_call({:join, token, channel_pid}, _from, state) do
-    state = put_in(state.players[token], channel_pid)
-
     case Players.get(token) do
       nil ->
         {:reply, {:error, :unknown_player}, state}
 
-      %{position: nil} ->
-        # A new player, or one transferring in from another floor — pick a
-        # random walkable spot rather than a fixed corner, so players don't
-        # all funnel through the same starting corridor.
-        position = spawn_cell(state)
-        Players.update(token, &%{&1 | position: position})
-        state = broadcast(state, [position], exclude: token)
-        {:reply, {:ok, visible_state(state, token, position)}, state}
-
       player ->
+        state = put_in(state.players[token], channel_pid)
+        position = player.position || place_player(state, token)
+
         # Broadcast first so everyone else already on this floor learns a
         # new player appeared nearby, then reply to the joiner directly.
-        state = broadcast(state, [player.position], exclude: token)
-        {:reply, {:ok, visible_state(state, token, player.position)}, state}
+        state = broadcast(state, [position], exclude: token)
+        {:reply, {:ok, visible_state(state, token, position)}, state}
     end
   end
 
@@ -270,6 +262,15 @@ defmodule MmoLite.Floor do
   # used for initial spawns, floor-transfer arrivals, and same-floor
   # heart-loss respawns, so players don't land on top of a forced fight.
   defp spawn_cell(state), do: Maze.random_cell(state.maze, &(find_monster_at(state, &1) != nil))
+
+  # A new player, or one transferring in from another floor, has no position
+  # yet — drop them on a random spawn cell rather than a fixed corner, so
+  # players don't all funnel through the same starting corridor.
+  defp place_player(state, token) do
+    position = spawn_cell(state)
+    Players.update(token, &%{&1 | position: position})
+    position
+  end
 
   defp player_positions(state) do
     for {_token, _pid, player} <- present_players(state), do: player.position
