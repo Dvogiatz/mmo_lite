@@ -18,6 +18,11 @@ defmodule MmoLite.Config do
 
   @vision_radius 6
 
+  # Minimum gap between accepted moves on one channel (20 moves/s). The
+  # client already waits for each reply, so this only bites clients pushing
+  # raw socket messages — each move triggers a broadcast to the whole floor.
+  @move_cooldown_ms 50
+
   @monster_pool_size 14
   @monster_respawn_ms 15_000
   @monster_armor_max_bonus 5
@@ -38,6 +43,8 @@ defmodule MmoLite.Config do
   def max_hearts, do: @max_hearts
 
   def vision_radius, do: @vision_radius
+
+  def move_cooldown_ms, do: @move_cooldown_ms
 
   def monster_pool_size, do: @monster_pool_size
   def monster_respawn_ms, do: @monster_respawn_ms

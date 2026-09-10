@@ -19,18 +19,20 @@ defmodule MmoLiteWeb.GameChannel do
 
   @impl true
   def handle_in("move", %{"dir" => dir}, socket) do
-    case parse_dir(dir) do
-      {:ok, dir_atom} ->
-        token = socket.assigns.token
-        floor = Players.get(token).floor
-        result = Floor.move(floor, token, dir_atom)
-        maybe_transfer(token, result)
-        Players.touch(token)
-        push(socket, "player_update", player_update_payload(token))
-        {:reply, {:ok, result}, socket}
+    now = System.monotonic_time(:millisecond)
 
-      :error ->
-        {:reply, {:error, %{reason: :invalid_direction}}, socket}
+    # Checked before touching Players/Floor, so rejected moves cost nothing.
+    with :ok <- check_move_cooldown(socket, now),
+         {:ok, dir_atom} <- parse_dir(dir) do
+      token = socket.assigns.token
+      floor = Players.get(token).floor
+      result = Floor.move(floor, token, dir_atom)
+      maybe_transfer(token, result)
+      Players.touch(token)
+      push(socket, "player_update", player_update_payload(token))
+      {:reply, {:ok, result}, assign(socket, :last_move_at, now)}
+    else
+      {:error, reason} -> {:reply, {:error, %{reason: reason}}, socket}
     end
   end
 
@@ -111,11 +113,16 @@ defmodule MmoLiteWeb.GameChannel do
 
   # -- move/door helpers -------------------------------------------------
 
+  defp check_move_cooldown(socket, now) do
+    last = socket.assigns[:last_move_at]
+    if last && now - last < Config.move_cooldown_ms(), do: {:error, :too_fast}, else: :ok
+  end
+
   defp parse_dir("up"), do: {:ok, :north}
   defp parse_dir("down"), do: {:ok, :south}
   defp parse_dir("left"), do: {:ok, :west}
   defp parse_dir("right"), do: {:ok, :east}
-  defp parse_dir(_), do: :error
+  defp parse_dir(_), do: {:error, :invalid_direction}
 
   defp maybe_transfer(token, %{transfer_to: next_floor}) do
     FloorSupervisor.ensure_started(next_floor)
