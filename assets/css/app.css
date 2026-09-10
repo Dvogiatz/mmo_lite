@@ -33,7 +33,7 @@ body {
 }
 
 #canvas-column {
-  /* Positions the floating joystick, which is drawn over the map. */
+  /* Positions the swipe feedback arrow, which is drawn over the map. */
   position: relative;
   display: flex;
   flex-direction: column;
@@ -61,93 +61,61 @@ body {
   background: #0a0b0e;
   border: 1px solid var(--panel-border);
   border-radius: 6px;
-  /* On touch screens the map is the joystick area: no scrolling, text
-     selection or long-press callout while steering. */
+  /* On touch screens the map is the swipe area: no scrolling, text
+     selection or long-press callout while swiping. */
   touch-action: none;
   user-select: none;
   -webkit-user-select: none;
   -webkit-touch-callout: none;
 }
 
-/* Floating touch joystick (assets/js/game/joystick.js), shown under the
-   finger wherever the map is pressed. */
-#joystick {
+/* Swipe feedback (assets/js/game/swipe.js): a chevron flashed where the
+   swipe started, nudging the way it went. */
+#swipe-arrow {
+  --turn: 0deg;
   position: absolute;
   left: 0;
   top: 0;
-  width: 112px;
-  height: 112px;
-  margin: -56px 0 0 -56px;
+  width: 40px;
+  height: 40px;
+  margin: -20px 0 0 -20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   border-radius: 50%;
-  background: rgba(91, 140, 255, 0.12);
-  border: 2px solid rgba(91, 140, 255, 0.4);
-  box-shadow: 0 0 24px rgba(0, 0, 0, 0.45);
+  background: rgba(91, 140, 255, 0.22);
+  color: var(--text);
+  font-size: 16px;
   pointer-events: none;
   opacity: 0;
-  transform: scale(0.85);
-  transition:
-    opacity 0.12s,
-    transform 0.12s;
 }
 
-#joystick.active {
-  opacity: 1;
-  transform: scale(1);
+#swipe-arrow[data-dir="right"] {
+  --turn: 90deg;
 }
 
-.joystick-knob {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  width: 46px;
-  height: 46px;
-  margin: -23px 0 0 -23px;
-  border-radius: 50%;
-  background: var(--accent);
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+#swipe-arrow[data-dir="down"] {
+  --turn: 180deg;
 }
 
-.joystick-arrow {
-  position: absolute;
-  font-size: 11px;
-  line-height: 1;
-  color: var(--text-dim);
-  opacity: 0.6;
-  transition:
-    color 0.1s,
-    opacity 0.1s;
+#swipe-arrow[data-dir="left"] {
+  --turn: 270deg;
 }
 
-.joystick-arrow[data-arrow="up"] {
-  top: 7px;
-  left: 50%;
-  transform: translateX(-50%);
+#swipe-arrow.show {
+  animation: swipe-flash 0.25s ease-out;
 }
 
-.joystick-arrow[data-arrow="down"] {
-  bottom: 7px;
-  left: 50%;
-  transform: translateX(-50%);
-}
+@keyframes swipe-flash {
+  from {
+    opacity: 1;
+    transform: rotate(var(--turn)) translateY(0);
+  }
 
-.joystick-arrow[data-arrow="left"] {
-  left: 8px;
-  top: 50%;
-  transform: translateY(-50%);
-}
-
-.joystick-arrow[data-arrow="right"] {
-  right: 8px;
-  top: 50%;
-  transform: translateY(-50%);
-}
-
-#joystick[data-dir="up"] [data-arrow="up"],
-#joystick[data-dir="down"] [data-arrow="down"],
-#joystick[data-dir="left"] [data-arrow="left"],
-#joystick[data-dir="right"] [data-arrow="right"] {
-  color: var(--text);
-  opacity: 1;
+  to {
+    opacity: 0;
+    transform: rotate(var(--turn)) translateY(-14px);
+  }
 }
 
 #touch-hint {

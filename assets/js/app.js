@@ -2,7 +2,7 @@ import "phoenix_html"
 import { GameConnection, storedToken, clearToken, setNotice, takeNotice } from "./game/net"
 import { GameRenderer } from "./game/canvas"
 import { GameUI } from "./game/ui"
-import { Joystick } from "./game/joystick"
+import { Swipe } from "./game/swipe"
 
 const KEY_DIRS = {
   ArrowUp: "up",
@@ -18,9 +18,6 @@ const KEY_DIRS = {
 // Headroom over the server's move cooldown, so network jitter doesn't push
 // two paced moves closer together than it allows.
 const MOVE_PACING_MARGIN_MS = 10
-
-// How often a held joystick direction re-requests its move (the queue paces it).
-const HOLD_REPEAT_MS = 100
 
 const TOUCH = window.matchMedia("(pointer: coarse)").matches
 
@@ -218,8 +215,8 @@ async function main() {
     }
   }
 
-  // Releasing a held key (or d-pad button) drops its pending repeat move, so
-  // the player stops where they let go instead of one step later.
+  // Releasing a held key drops its pending repeat move, so the player stops
+  // where they let go instead of one step later.
   // Deliberate taps (non-repeat presses) still go through.
   function cancelRepeat(dir) {
     if (queued && queued.repeat && queued.dir === dir) queued = null
@@ -248,25 +245,11 @@ async function main() {
     tryEnterDoor()
   })
 
-  // Touch joystick: press anywhere on the map and drag. Holding a direction
-  // keeps walking like a held key — one move straight away, then repeats
-  // (paced by the move queue) until the finger lifts or re-centres.
-  let heldDir = null
-  let holdTimer = null
-
-  function holdDirection(dir) {
-    clearInterval(holdTimer)
-    holdTimer = null
-    if (heldDir) cancelRepeat(heldDir)
-    heldDir = dir
-
-    if (dir && conn.isJoined()) {
-      requestMove(dir, false)
-      holdTimer = setInterval(() => requestMove(dir, true), HOLD_REPEAT_MS)
-    }
-  }
-
-  new Joystick(canvas, document.getElementById("joystick"), holdDirection)
+  // Touch: every swipe on the map is exactly one deliberate step, so nothing
+  // keeps walking once the finger stops.
+  new Swipe(canvas, document.getElementById("swipe-arrow"), (dir) => {
+    if (conn.isJoined()) requestMove(dir, false)
+  })
 }
 
 document.addEventListener("DOMContentLoaded", main)
