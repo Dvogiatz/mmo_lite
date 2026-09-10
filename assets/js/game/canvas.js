@@ -29,12 +29,6 @@ export class GameRenderer {
     this.players = []
   }
 
-  // Forget remembered tiles, e.g. when the maze they came from no longer exists.
-  reset() {
-    this.seenTiles.clear()
-    this.floor = null
-  }
-
   applyStateUpdate(payload) {
     // Tiles are keyed by coordinates only, so a different floor's maze would
     // otherwise show through the fog.

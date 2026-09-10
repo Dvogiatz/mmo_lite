@@ -1,6 +1,7 @@
 import { Socket } from "phoenix"
 
 const TOKEN_KEY = "mmo_lite_token"
+const NOTICE_KEY = "mmo_lite_notice"
 
 export function storedToken() {
   try {
@@ -23,6 +24,25 @@ export function clearToken() {
     window.sessionStorage.removeItem(TOKEN_KEY)
   } catch (_e) {
     // ignore
+  }
+}
+
+// A one-off message to show after the next page load (e.g. why a reload happened).
+export function setNotice(text) {
+  try {
+    window.sessionStorage.setItem(NOTICE_KEY, text)
+  } catch (_e) {
+    // ignore — the reload just won't explain itself
+  }
+}
+
+export function takeNotice() {
+  try {
+    const text = window.sessionStorage.getItem(NOTICE_KEY)
+    window.sessionStorage.removeItem(NOTICE_KEY)
+    return text
+  } catch (_e) {
+    return null
   }
 }
 

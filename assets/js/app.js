@@ -1,5 +1,5 @@
 import "phoenix_html"
-import { GameConnection, storedToken, clearToken } from "./game/net"
+import { GameConnection, storedToken, clearToken, setNotice, takeNotice } from "./game/net"
 import { GameRenderer } from "./game/canvas"
 import { GameUI } from "./game/ui"
 
@@ -94,14 +94,13 @@ async function main() {
   // The socket dropped and Phoenix rejoined on its own — resync everything.
   conn.on("rejoined", (reply) => applyJoinReply(reply))
 
-  // A rejoin was refused: the server no longer knows this token (restart/deploy).
+  // A rejoin was refused: the server no longer knows this token, so it
+  // restarted — usually a deploy. Reload to pick up the new assets (this
+  // page's code may not match the new server), explaining why afterwards.
   conn.on("session_lost", () => {
-    queued = null
     clearToken()
-    renderer.reset()
-    ui.hideDoorPrompt()
-    ui.log("Your session expired — enter a name to start a new run.", "loss")
-    ui.showNameOverlay()
+    setNotice("Your session expired — enter a name to start a new run.")
+    window.location.reload()
   })
 
   function updateDoorPrompt() {
@@ -159,6 +158,9 @@ async function main() {
       moving = false
     }
   }
+
+  const notice = takeNotice()
+  if (notice) ui.log(notice, "loss")
 
   const existingToken = storedToken()
   if (existingToken) {
