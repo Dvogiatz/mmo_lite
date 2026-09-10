@@ -106,6 +106,7 @@ defmodule MmoLiteWeb.GameChannel do
       max_hearts: Config.max_hearts(),
       equipment: Enum.map(player.equipment, &equipment_view/1),
       buff: buff_view(player),
+      move_cooldown_ms: Config.move_cooldown_ms(),
       visible: visible
     }
   end

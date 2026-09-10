@@ -14,6 +14,12 @@ const KEY_DIRS = {
   d: "right",
 }
 
+// Headroom over the server's move cooldown, so network jitter doesn't push
+// two paced moves closer together than it allows.
+const MOVE_PACING_MARGIN_MS = 10
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
+
 function describeOutcome(result, ui) {
   switch (result.outcome) {
     case "moved":
@@ -64,7 +70,18 @@ async function main() {
   const ui = new GameUI()
   const conn = new GameConnection()
 
+  // Movement: at most one move in flight plus one queued (the latest key
+  // wins), so holding a key walks steadily instead of dropping key repeats.
+  let moving = false
+  let queued = null
+  let lastMoveAt = 0
+  let moveCooldownMs = 50
+  // Own position per the latest move reply. A move's state_update arrives
+  // just after its reply, so renderer.origin briefly lags behind it.
+  let knownOrigin = null
+
   conn.on("state_update", (payload) => {
+    knownOrigin = null
     renderer.applyStateUpdate(payload)
     updateDoorPrompt()
   })
@@ -79,6 +96,7 @@ async function main() {
 
   // A rejoin was refused: the server no longer knows this token (restart/deploy).
   conn.on("session_lost", () => {
+    queued = null
     clearToken()
     renderer.reset()
     ui.hideDoorPrompt()
@@ -95,6 +113,8 @@ async function main() {
   }
 
   function applyJoinReply(reply) {
+    if (reply.move_cooldown_ms) moveCooldownMs = reply.move_cooldown_ms
+    knownOrigin = null
     ui.hideNameOverlay()
     ui.setName(reply.name)
     ui.setFloor(reply.floor)
@@ -105,6 +125,39 @@ async function main() {
 
   async function join(params) {
     applyJoinReply(await conn.connect(params))
+  }
+
+  function requestMove(dir, repeat) {
+    queued = { dir, repeat }
+    if (!moving) runMoves()
+  }
+
+  async function runMoves() {
+    moving = true
+    try {
+      while (queued) {
+        // Pace moves to the server's cooldown so none get rejected as too fast.
+        const wait = lastMoveAt + moveCooldownMs + MOVE_PACING_MARGIN_MS - performance.now()
+        if (wait > 0) await sleep(wait)
+        if (!queued || !conn.isJoined()) break
+
+        const { dir } = queued
+        queued = null
+        // Walls are known client-side: skip the round trip for a blocked move.
+        if (!renderer.canMove(dir, knownOrigin || renderer.origin)) continue
+
+        lastMoveAt = performance.now()
+        try {
+          const result = await conn.move(dir)
+          if (result.position) knownOrigin = result.position
+          describeOutcome(result, ui)
+        } catch (err) {
+          if (err.reason === "timeout") ui.log("The server didn't respond — try again.", "loss")
+        }
+      }
+    } finally {
+      moving = false
+    }
   }
 
   const existingToken = storedToken()
@@ -129,8 +182,6 @@ async function main() {
     }
   })
 
-  let moving = false
-
   document.addEventListener("keydown", async (e) => {
     if (!conn.isJoined() || e.target instanceof HTMLInputElement) return
 
@@ -138,17 +189,7 @@ async function main() {
     if (dir) {
       // Arrow keys would otherwise scroll the page under the board.
       e.preventDefault()
-      if (moving) return
-
-      moving = true
-      try {
-        const result = await conn.move(dir)
-        describeOutcome(result, ui)
-      } catch (err) {
-        if (err.reason === "timeout") ui.log("The server didn't respond — try again.", "loss")
-      } finally {
-        moving = false
-      }
+      requestMove(dir, e.repeat)
       return
     }
 
@@ -165,6 +206,13 @@ async function main() {
         }
       }
     }
+  })
+
+  // Releasing a held key drops its pending key-repeat move, so the player
+  // stops where they let go instead of one step later. Deliberate taps
+  // (non-repeat presses) still go through.
+  document.addEventListener("keyup", (e) => {
+    if (queued && queued.repeat && KEY_DIRS[e.key] === queued.dir) queued = null
   })
 }
 

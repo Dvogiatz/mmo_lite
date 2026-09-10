@@ -9,6 +9,8 @@ const EAST = 2
 const SOUTH = 4
 const WEST = 8
 
+const DIR_BITS = { up: NORTH, down: SOUTH, left: WEST, right: EAST }
+
 export class GameRenderer {
   constructor(canvas) {
     this.ctx = canvas.getContext("2d")
@@ -185,6 +187,13 @@ export class GameRenderer {
     ctx.strokeStyle = "#5b8cff"
     ctx.lineWidth = 3
     ctx.stroke()
+  }
+
+  // Whether the walls already known client-side allow stepping `dir` from
+  // `from`. An unknown tile counts as open; the server has the final say.
+  canMove(dir, from = this.origin) {
+    const open = this.seenTiles.get(`${from[0]},${from[1]}`)
+    return open === undefined || (open & DIR_BITS[dir]) !== 0
   }
 
   isOnDoor() {
