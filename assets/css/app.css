@@ -33,8 +33,6 @@ body {
 }
 
 #canvas-column {
-  /* Positions the swipe feedback arrow, which is drawn over the map. */
-  position: relative;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -58,6 +56,7 @@ body {
   width: min(650px, calc(100vw - 32px));
   height: auto;
   aspect-ratio: 1;
+  display: block;
   background: #0a0b0e;
   border: 1px solid var(--panel-border);
   border-radius: 6px;
@@ -361,22 +360,50 @@ body {
   filter: brightness(1.1);
 }
 
+/* Positions the overlays drawn on top of the map (swipe arrow, door button). */
+#map-wrap {
+  position: relative;
+}
+
+/* Sits on the map's bottom edge — where the eyes and thumb already are —
+   rather than fixed to the viewport, where on phones it covered the stats. */
 #door-prompt {
-  position: fixed;
-  bottom: 20px;
+  position: absolute;
   left: 50%;
+  bottom: 12px;
   transform: translateX(-50%);
-  background: var(--panel-bg);
-  border: 1px solid var(--panel-border);
-  border-radius: 8px;
-  padding: 10px 16px;
+  max-width: calc(100% - 24px);
+  min-height: 44px;
+  padding: 10px 18px;
+  border: 1px solid var(--gold);
+  border-radius: 999px;
+  background: rgba(29, 31, 39, 0.94);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
   font: inherit;
-  font-size: 13px;
+  font-size: 14px;
   color: var(--text);
   cursor: pointer;
+  touch-action: manipulation;
   display: none;
+}
+
+#door-prompt:hover {
+  background: rgba(46, 49, 61, 0.96);
 }
 
 #door-prompt.visible {
   display: block;
+  animation: door-in 0.18s ease-out;
+}
+
+@keyframes door-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
 }

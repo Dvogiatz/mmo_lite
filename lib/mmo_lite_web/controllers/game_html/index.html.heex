@@ -1,9 +1,11 @@
 <div id="game-root">
   <div id="canvas-column">
     <div id="floor-header">Floor <span id="floor-value">0</span></div>
-    <canvas id="game-canvas" width="650" height="650"></canvas>
-
-    <div id="swipe-arrow" aria-hidden="true">▲</div>
+    <div id="map-wrap">
+      <canvas id="game-canvas" width="650" height="650"></canvas>
+      <div id="swipe-arrow" aria-hidden="true">▲</div>
+      <button type="button" id="door-prompt"></button>
+    </div>
     <p id="touch-hint">Swipe on the map to take a step</p>
   </div>
 
@@ -67,8 +69,6 @@
       Chat coming in v2
     </div>
   </div>
-
-  <button type="button" id="door-prompt"></button>
 
   <div id="name-overlay" class="hidden">
     <div id="name-card">
