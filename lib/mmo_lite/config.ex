@@ -32,6 +32,11 @@ defmodule MmoLite.Config do
 
   @floor_idle_teardown_ms 30_000
 
+  # How many of a player's best items are kept and shown; all looted damage
+  # still stacks into their power, this just keeps the list (and every
+  # stats payload) from growing without bound.
+  @equipment_listed 8
+
   @killing_spree_damage 5
   @killing_spree_duration_ms 6_000
 
@@ -54,6 +59,8 @@ defmodule MmoLite.Config do
   def reap_timeout_ms, do: @reap_timeout_ms
 
   def floor_idle_teardown_ms, do: @floor_idle_teardown_ms
+
+  def equipment_listed, do: @equipment_listed
 
   def killing_spree_damage, do: @killing_spree_damage
   def killing_spree_duration_ms, do: @killing_spree_duration_ms

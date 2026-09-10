@@ -55,9 +55,8 @@ export class GameUI {
     // MmoLite.Player.power/1 on the server, which decides combat outcomes
     // against a monster's (level + armor). A tie here still goes to the
     // 1d6 "last hope" roll, same as being weaker — it's not an auto-win.
-    const equipmentDamage = player.equipment.reduce((sum, item) => sum + item.damage, 0)
     const buffDamage = player.buff ? player.buff.damage : 0
-    const power = player.level + equipmentDamage + buffDamage
+    const power = player.level + player.equipment_damage + buffDamage
     el("power-value").textContent = `Power: ${power}`
 
     const list = el("equipment-list")
@@ -73,6 +72,7 @@ export class GameUI {
         list.appendChild(li)
       }
     }
+    el("gear-total").textContent = `All loot: +${player.equipment_damage} damage`
 
     if (player.buff) {
       this.buffExpiresAtLocal = Date.now() + player.buff.remaining_ms

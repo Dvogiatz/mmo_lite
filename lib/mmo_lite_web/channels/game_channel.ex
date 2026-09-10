@@ -29,7 +29,11 @@ defmodule MmoLiteWeb.GameChannel do
       result = Floor.move(floor, token, dir_atom)
       maybe_transfer(socket, token, result)
       Players.touch(token)
-      push(socket, "player_update", player_update_payload(token))
+
+      # Only fights and floor transfers change stats — a plain step doesn't.
+      if result.outcome not in [:moved, :blocked],
+        do: push(socket, "player_update", player_update_payload(token))
+
       {:reply, {:ok, result}, assign(socket, :last_move_at, now)}
     else
       {:error, reason} -> {:reply, {:error, %{reason: reason}}, socket}
@@ -105,6 +109,7 @@ defmodule MmoLiteWeb.GameChannel do
       hearts: player.hearts,
       max_hearts: Config.max_hearts(),
       equipment: Enum.map(player.equipment, &equipment_view/1),
+      equipment_damage: player.equipment_damage,
       buff: buff_view(player),
       move_cooldown_ms: Config.move_cooldown_ms(),
       visible: visible
@@ -146,6 +151,7 @@ defmodule MmoLiteWeb.GameChannel do
       hearts: player.hearts,
       max_hearts: Config.max_hearts(),
       equipment: Enum.map(player.equipment, &equipment_view/1),
+      equipment_damage: player.equipment_damage,
       buff: buff_view(player),
       floor: player.floor,
       position: Wire.cell(player.position)

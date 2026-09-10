@@ -162,6 +162,13 @@ body {
   border-bottom: 1px solid var(--panel-border);
 }
 
+#gear-total {
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--gold);
+  cursor: help;
+}
+
 #combat-log li.win {
   color: var(--accent);
 }

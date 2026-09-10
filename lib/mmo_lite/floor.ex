@@ -180,7 +180,8 @@ defmodule MmoLite.Floor do
           level: new_level,
           xp: new_xp,
           hearts: new_hearts,
-          equipment: [loot | p.equipment],
+          equipment: Loot.best([loot | p.equipment], Config.equipment_listed()),
+          equipment_damage: p.equipment_damage + loot.damage,
           buff: buff
       }
     end)

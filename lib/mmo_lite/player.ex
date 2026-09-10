@@ -13,7 +13,10 @@ defmodule MmoLite.Player do
     :level,
     :xp,
     :hearts,
+    # Only the best few items, for display (see Config.equipment_listed/0) —
+    # every item ever looted still counts toward `equipment_damage`.
     :equipment,
+    :equipment_damage,
     :buff,
     :last_seen
   ]
@@ -33,6 +36,7 @@ defmodule MmoLite.Player do
       xp: 0,
       hearts: Config.starting_hearts(),
       equipment: [],
+      equipment_damage: 0,
       buff: nil,
       last_seen: System.monotonic_time(:millisecond)
     }
@@ -40,11 +44,7 @@ defmodule MmoLite.Player do
 
   @doc "Total offensive power, including any still-active Killing Spree buff."
   def power(%__MODULE__{} = player) do
-    MmoLite.Combat.player_power(
-      player.level,
-      MmoLite.Loot.total_damage(player.equipment),
-      buff_damage(player)
-    )
+    MmoLite.Combat.player_power(player.level, player.equipment_damage, buff_damage(player))
   end
 
   def buff_damage(%__MODULE__{buff: nil}), do: 0
@@ -63,6 +63,7 @@ defmodule MmoLite.Player do
         position: nil,
         hearts: Config.starting_hearts(),
         equipment: [],
+        equipment_damage: 0,
         buff: nil
     }
   end

@@ -26,9 +26,9 @@ defmodule MmoLite.Loot do
     }
   end
 
-  @doc "Sum of `damage` across a list of equipment — the player's total `equipment_damage`."
-  def total_damage(equipment) when is_list(equipment) do
-    Enum.reduce(equipment, 0, &(&1.damage + &2))
+  @doc "The `n` highest-damage items out of `equipment`, best first."
+  def best(equipment, n) when is_list(equipment) do
+    equipment |> Enum.sort_by(& &1.damage, :desc) |> Enum.take(n)
   end
 
   defp roll_tier do

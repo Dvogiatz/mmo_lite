@@ -30,6 +30,17 @@ defmodule MmoLiteWeb.GameChannelTest do
     assert_reply ref, :ok, %{outcome: _}
   end
 
+  test "a plain step doesn't push player stats", %{socket: socket} do
+    # No monsters on the (shared) floor 0, so the step can't become a fight.
+    [{pid, _}] = Registry.lookup(MmoLite.FloorRegistry, 0)
+    :sys.replace_state(pid, &%{&1 | monsters: %{}})
+
+    ref = push(socket, "move", %{"dir" => "up"})
+    assert_reply ref, :ok, %{outcome: outcome}
+    assert outcome in [:moved, :blocked]
+    refute_push "player_update", _
+  end
+
   test "an unknown direction is rejected", %{socket: socket} do
     ref = push(socket, "move", %{"dir" => "sideways"})
     assert_reply ref, :error, %{reason: :invalid_direction}

@@ -11,9 +11,9 @@ defmodule MmoLite.LootTest do
     assert is_binary(item.name)
   end
 
-  test "total_damage sums all equipment" do
+  test "best/2 keeps the highest-damage items, best first" do
     items = [%Loot{damage: 3}, %Loot{damage: 5}, %Loot{damage: 2}]
-    assert Loot.total_damage(items) == 10
-    assert Loot.total_damage([]) == 0
+    assert Loot.best(items, 2) == [%Loot{damage: 5}, %Loot{damage: 3}]
+    assert Loot.best([], 2) == []
   end
 end

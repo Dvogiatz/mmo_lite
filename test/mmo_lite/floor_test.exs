@@ -148,6 +148,7 @@ defmodule MmoLite.FloorTest do
     player = Players.get(token)
     assert player.level > 1
     assert player.equipment != []
+    assert player.equipment_damage == result.loot.damage
     assert player.hearts >= Config.starting_hearts()
   end
 
