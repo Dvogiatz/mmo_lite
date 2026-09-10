@@ -17,10 +17,12 @@ const ODDS_COLORS = { sure: "#4cd07d", even: "#e0b84b", risky: "#ff5c5c" }
 
 export class GameRenderer {
   constructor(canvas) {
+    this.canvas = canvas
     this.ctx = canvas.getContext("2d")
-    this.width = canvas.width
-    this.height = canvas.height
-    this.cellPx = this.width / GRID_SIZE
+    // Drawing uses fixed logical coordinates (the canvas's width attribute);
+    // resize() maps them onto however many device pixels it really covers.
+    this.size = canvas.width
+    this.cellPx = this.size / GRID_SIZE
 
     // Tiles ever seen persist for the dim-vs-black fog rendering; monsters
     // and players are always drawn fresh from the latest snapshot only.
@@ -34,6 +36,25 @@ export class GameRenderer {
     this.players = []
     // The player's own {power, level}, for colouring monster odds and the door.
     this.stats = null
+
+    this.resize()
+    window.addEventListener("resize", () => this.resize())
+  }
+
+  // Sizes the backing store to the canvas's on-screen size × devicePixelRatio,
+  // so it stays sharp on high-DPI screens and when CSS shrinks it to fit.
+  resize() {
+    const cssSize = this.canvas.getBoundingClientRect().width || this.size
+    const px = Math.round(cssSize * (window.devicePixelRatio || 1))
+
+    if (this.canvas.width !== px) {
+      this.canvas.width = px
+      this.canvas.height = px
+    }
+
+    const scale = px / this.size
+    this.ctx.setTransform(scale, 0, 0, scale, 0, 0)
+    this.draw()
   }
 
   setPlayerStats(stats) {
@@ -66,9 +87,9 @@ export class GameRenderer {
   }
 
   draw() {
-    const { ctx, width, height, cellPx } = this
+    const { ctx, size, cellPx } = this
     ctx.fillStyle = "#000"
-    ctx.fillRect(0, 0, width, height)
+    ctx.fillRect(0, 0, size, size)
 
     const half = Math.floor(GRID_SIZE / 2)
     const [ox, oy] = this.origin

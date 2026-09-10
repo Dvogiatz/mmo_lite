@@ -18,6 +18,11 @@ const KEY_DIRS = {
 // two paced moves closer together than it allows.
 const MOVE_PACING_MARGIN_MS = 10
 
+// How often a held d-pad button re-requests its move (the queue paces it).
+const HOLD_REPEAT_MS = 100
+
+const TOUCH = window.matchMedia("(pointer: coarse)").matches
+
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 
 function describeOutcome(result, ui) {
@@ -118,7 +123,7 @@ async function main() {
     const required = renderer.doorLevel
 
     if (level >= required) {
-      ui.showDoorPrompt("Press E to use the door")
+      ui.showDoorPrompt(TOUCH ? "Tap here to use the door" : "Press E to use the door")
     } else {
       ui.showDoorPrompt(`The door needs Lv. ${required} — you're Lv. ${level}`)
     }
@@ -197,7 +202,29 @@ async function main() {
     }
   })
 
-  document.addEventListener("keydown", async (e) => {
+  async function tryEnterDoor() {
+    if (!conn.isJoined() || !renderer.isOnDoor()) return
+
+    try {
+      await conn.enterDoor()
+      ui.log("Descended to the next floor.")
+    } catch (err) {
+      if (err.reason === "level_too_low") {
+        ui.log(`The door requires level ${err.required}.`, "loss")
+      } else if (err.reason === "timeout") {
+        ui.log("The server didn't respond — try again.", "loss")
+      }
+    }
+  }
+
+  // Releasing a held key (or d-pad button) drops its pending repeat move, so
+  // the player stops where they let go instead of one step later.
+  // Deliberate taps (non-repeat presses) still go through.
+  function cancelRepeat(dir) {
+    if (queued && queued.repeat && queued.dir === dir) queued = null
+  }
+
+  document.addEventListener("keydown", (e) => {
     if (!conn.isJoined() || e.target instanceof HTMLInputElement) return
 
     const dir = KEY_DIRS[e.key]
@@ -205,30 +232,46 @@ async function main() {
       // Arrow keys would otherwise scroll the page under the board.
       e.preventDefault()
       requestMove(dir, e.repeat)
-      return
-    }
-
-    if ((e.key === "e" || e.key === "Enter") && renderer.isOnDoor()) {
+    } else if ((e.key === "e" || e.key === "Enter") && renderer.isOnDoor()) {
       e.preventDefault()
-      try {
-        await conn.enterDoor()
-        ui.log("Descended to the next floor.")
-      } catch (err) {
-        if (err.reason === "level_too_low") {
-          ui.log(`The door requires level ${err.required}.`, "loss")
-        } else if (err.reason === "timeout") {
-          ui.log("The server didn't respond — try again.", "loss")
-        }
-      }
+      tryEnterDoor()
     }
   })
 
-  // Releasing a held key drops its pending key-repeat move, so the player
-  // stops where they let go instead of one step later. Deliberate taps
-  // (non-repeat presses) still go through.
-  document.addEventListener("keyup", (e) => {
-    if (queued && queued.repeat && KEY_DIRS[e.key] === queued.dir) queued = null
+  document.addEventListener("keyup", (e) => cancelRepeat(KEY_DIRS[e.key]))
+
+  // The door prompt doubles as a button, for touch screens.
+  document.getElementById("door-prompt").addEventListener("click", (e) => {
+    // Otherwise a later Enter would press it again on top of the key handler.
+    e.currentTarget.blur()
+    tryEnterDoor()
   })
+
+  // On-screen d-pad (touch devices): holding a button keeps walking, like a
+  // held key — one move straight away, then repeats until it's released.
+  for (const button of document.querySelectorAll("#touch-controls [data-dir]")) {
+    const dir = button.dataset.dir
+    let repeatTimer = null
+
+    const release = () => {
+      clearInterval(repeatTimer)
+      repeatTimer = null
+      cancelRepeat(dir)
+    }
+
+    button.addEventListener("pointerdown", (e) => {
+      // Keeps focus, text selection and synthetic mouse events off the button.
+      e.preventDefault()
+      if (!conn.isJoined()) return
+
+      release()
+      requestMove(dir, false)
+      repeatTimer = setInterval(() => requestMove(dir, true), HOLD_REPEAT_MS)
+    })
+    button.addEventListener("pointerup", release)
+    button.addEventListener("pointercancel", release)
+    button.addEventListener("pointerleave", release)
+  }
 }
 
 document.addEventListener("DOMContentLoaded", main)
