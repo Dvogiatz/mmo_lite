@@ -86,6 +86,7 @@ export class GameConnection {
 
       this.channel.on("state_update", (payload) => this.emit("state_update", payload))
       this.channel.on("player_update", (payload) => this.emit("player_update", payload))
+      this.channel.on("roster_update", (payload) => this.emit("roster_update", payload))
 
       this.channel
         .join()

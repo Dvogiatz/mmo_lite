@@ -7,6 +7,9 @@ defmodule MmoLite.Player do
 
   defstruct [
     :token,
+    # Public identifier other players see (in rosters and state updates) —
+    # the token is a session secret, so it never leaves its owner's channel.
+    :id,
     :name,
     :floor,
     :position,
@@ -30,6 +33,7 @@ defmodule MmoLite.Player do
   def new(token, name) do
     %__MODULE__{
       token: token,
+      id: 8 |> :crypto.strong_rand_bytes() |> Base.url_encode64(padding: false),
       name: name,
       floor: 0,
       # nil means "not placed yet" — MmoLite.Floor assigns a random walkable

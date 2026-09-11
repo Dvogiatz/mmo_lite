@@ -78,7 +78,11 @@ defmodule MmoLite.Floor do
 
         # Broadcast first so everyone else already on this floor learns a
         # new player appeared nearby, then reply to the joiner directly.
-        state = broadcast(state, [position], exclude: token)
+        state =
+          state
+          |> broadcast([position], exclude: token)
+          |> broadcast_roster()
+
         {:reply, {:ok, visible_state(state, token, position)}, state}
     end
   end
@@ -205,6 +209,9 @@ defmodule MmoLite.Floor do
       end)
       |> broadcast([player.position, dest], include: token)
 
+    # A level-up changes this player's entry in everyone's floor roster.
+    state = if levels_gained > 0, do: broadcast_roster(state), else: state
+
     result = %{
       outcome: outcome,
       position: Wire.cell(dest),
@@ -316,7 +323,9 @@ defmodule MmoLite.Floor do
       Process.send_after(self(), :idle_teardown, Config.floor_idle_teardown_ms())
     end
 
-    broadcast(state, List.wrap(position))
+    state
+    |> broadcast(List.wrap(position))
+    |> broadcast_roster()
   end
 
   # Sends fresh visible state to every player on the floor who can see at
@@ -384,6 +393,28 @@ defmodule MmoLite.Floor do
 
   defp loot_view(loot), do: Map.take(loot, [:id, :slot, :name, :tier, :value])
 
-  defp player_view(player),
-    do: %{name: player.name, position: Wire.cell(player.position), level: player.level}
+  # Power is only ever sent here — i.e. for players the viewer can currently
+  # see. The floor-wide roster below carries just name and level.
+  defp player_view(player) do
+    %{
+      id: player.id,
+      name: player.name,
+      position: Wire.cell(player.position),
+      level: player.level,
+      power: Player.power(player)
+    }
+  end
+
+  # Unlike `broadcast/3`, not limited by vision: everyone on the floor gets
+  # the full roster whenever someone joins, leaves or levels up.
+  defp broadcast_roster(state) do
+    present = present_players(state)
+    roster = for {_token, _pid, p} <- present, do: %{id: p.id, name: p.name, level: p.level}
+
+    for {_token, pid, _player} <- present do
+      send(pid, {:roster_update, %{players: roster}})
+    end
+
+    state
+  end
 end

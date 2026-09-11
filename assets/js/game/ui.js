@@ -9,6 +9,10 @@ export class GameUI {
     this.player = null
     this.buffExpiresAtLocal = null
     this.evasionExpiresAtLocal = null
+    // Own public id (from the join reply), to pick ourselves out of the roster.
+    this.selfId = null
+    this.roster = []
+    this.nearby = new Map()
     // Called whenever power, level, or evasion may have changed (new stats,
     // buff/evasion expiry).
     this.onStatsChange = null
@@ -92,6 +96,7 @@ export class GameUI {
 
   renderPower() {
     el("power-value").textContent = `Power: ${this.power()}`
+    this.renderRoster()
     if (this.onStatsChange) this.onStatsChange()
   }
 
@@ -131,6 +136,64 @@ export class GameUI {
 
     indicator.classList.add("active")
     el("evasion-timer").textContent = `${(remaining / 1000).toFixed(1)}s`
+  }
+
+  // -- floor roster -------------------------------------------------------
+
+  // Everyone on this floor (name + level) arrives via roster_update; power
+  // is only known for players currently in sight, from each state_update.
+  setRoster(players) {
+    this.roster = players
+    this.renderRoster()
+  }
+
+  setNearby(players) {
+    this.nearby = new Map(players.map((p) => [p.id, p]))
+    this.renderRoster()
+  }
+
+  renderRoster() {
+    const list = el("floor-roster")
+    list.innerHTML = ""
+
+    const rows = this.roster.map((entry) => {
+      const self = entry.id === this.selfId
+      const seen = this.nearby.get(entry.id)
+      // Self and in-sight players have fresher stats than the last roster push.
+      const level = self && this.player ? this.player.level : seen ? seen.level : entry.level
+      const power = self ? this.power() : seen ? seen.power : null
+      return { entry, self, seen: !!seen, level, power }
+    })
+    rows.sort((a, b) => b.level - a.level || a.entry.name.localeCompare(b.entry.name))
+
+    for (const row of rows) {
+      const li = document.createElement("li")
+      li.className = `roster-row${row.self ? " self" : ""}${row.seen ? " nearby" : ""}`
+
+      // textContent throughout — names are whatever players typed in.
+      const name = document.createElement("span")
+      name.className = "roster-name"
+      name.textContent = row.entry.name
+      if (row.self) {
+        const you = document.createElement("span")
+        you.className = "roster-you"
+        you.textContent = "(you)"
+        name.appendChild(you)
+      }
+
+      const level = document.createElement("span")
+      level.textContent = `Lv.${row.level}`
+
+      const power = document.createElement("span")
+      power.className = row.power === null ? "roster-power unknown" : "roster-power"
+      power.textContent = row.power === null ? "—" : `⚔ ${row.power}`
+      power.title = row.power === null ? "Out of sight" : "Power"
+
+      li.append(name, level, power)
+      list.appendChild(li)
+    }
+
+    el("roster-count").textContent = this.roster.length ? `(${this.roster.length})` : ""
   }
 
   // -- combat log -------------------------------------------------------

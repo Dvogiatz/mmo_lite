@@ -109,6 +109,7 @@ async function main() {
   conn.on("state_update", (payload) => {
     knownOrigin = null
     renderer.applyStateUpdate(payload)
+    ui.setNearby(payload.players || [])
     updateDoorPrompt()
   })
 
@@ -116,6 +117,8 @@ async function main() {
     ui.updatePlayer(payload)
     ui.setFloor(payload.floor)
   })
+
+  conn.on("roster_update", (payload) => ui.setRoster(payload.players))
 
   // The socket dropped and Phoenix rejoined on its own — resync everything.
   conn.on("rejoined", (reply) => applyJoinReply(reply))
@@ -149,10 +152,12 @@ async function main() {
     if (reply.move_cooldown_ms) moveCooldownMs = reply.move_cooldown_ms
     knownOrigin = null
     ui.hideNameOverlay()
+    ui.selfId = reply.id
     ui.setName(reply.name)
     ui.setFloor(reply.floor)
     ui.updatePlayer(reply)
     renderer.applyStateUpdate(reply.visible)
+    ui.setNearby(reply.visible.players || [])
     updateDoorPrompt()
   }
 

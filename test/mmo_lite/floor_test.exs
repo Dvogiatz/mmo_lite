@@ -312,6 +312,65 @@ defmodule MmoLite.FloorTest do
     assert player.boots == Loot.starter_boots()
   end
 
+  test "everyone on the floor gets the roster when someone joins, even out of sight", %{
+    floor: floor,
+    token: token
+  } do
+    [{pid, _}] = Registry.lookup(MmoLite.FloorRegistry, floor)
+    %{maze: maze} = :sys.get_state(pid)
+
+    Players.update(token, &%{&1 | floor: floor, position: maze.entry})
+    {:ok, _visible} = Floor.join(floor, token, self())
+    flush_mailbox()
+
+    # The door is well out of vision range of the entry.
+    {far_token, far} = Players.create("Faraway")
+    Players.update(far_token, &%{&1 | floor: floor, position: maze.door, level: 7})
+    {:ok, _visible} = Floor.join(floor, far_token, spawn(fn -> Process.sleep(:infinity) end))
+
+    assert_receive {:roster_update, %{players: roster}}
+    assert %{id: far.id, name: "Faraway", level: 7} in roster
+    # The roster never reveals power — only a vision-limited state update does.
+    refute Enum.any?(roster, &Map.has_key?(&1, :power))
+    refute_received {:state_update, _}
+  end
+
+  test "players in sight carry their power, and leaving drops them from the roster", %{
+    floor: floor,
+    token: token
+  } do
+    [{pid, _}] = Registry.lookup(MmoLite.FloorRegistry, floor)
+    %{maze: maze} = :sys.get_state(pid)
+
+    Players.update(token, &%{&1 | floor: floor, position: maze.entry})
+    {:ok, _visible} = Floor.join(floor, token, self())
+    flush_mailbox()
+
+    {near_token, near} = Players.create("Neighbour")
+    Players.update(near_token, &%{&1 | floor: floor, position: maze.entry})
+    {:ok, _visible} = Floor.join(floor, near_token, spawn(fn -> Process.sleep(:infinity) end))
+
+    power = MmoLite.Player.power(Players.get(near_token))
+    assert_receive {:state_update, %{players: [%{id: id, power: ^power}]}}
+    assert id == near.id
+    flush_mailbox()
+
+    assert :ok = Floor.leave(floor, near_token)
+    assert_receive {:roster_update, %{players: roster}}
+    refute Enum.any?(roster, &(&1.id == near.id))
+  end
+
+  test "a level-up is pushed to the floor's roster", %{floor: floor, token: token} do
+    Players.update(token, &%{&1 | floor: floor})
+    {:ok, _visible} = Floor.join(floor, token, self())
+    flush_mailbox()
+
+    {dir, _pos} = place_monster(floor, token, level: 0, armor: 0)
+    assert %{outcome: :win, level: level} = Floor.move(floor, token, dir)
+
+    assert_receive {:roster_update, %{players: [%{level: ^level}]}}
+  end
+
   # Places a fresh monster one step away from the player's *current*
   # position (in whichever direction happens to be open) and returns that
   # direction plus the monster's cell, so the caller can move into it.

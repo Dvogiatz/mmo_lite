@@ -15,7 +15,12 @@ defmodule MmoLiteWeb.GameChannelTest do
       |> subscribe_and_join(MmoLiteWeb.GameChannel, "game:play", %{"name" => "Tester"})
 
     on_exit(fn -> MmoLite.Players.delete(reply.token) end)
-    {:ok, socket: socket}
+    {:ok, socket: socket, reply: reply}
+  end
+
+  test "joining pushes the floor roster, including yourself", %{reply: reply} do
+    assert_push "roster_update", %{players: roster}
+    assert Enum.any?(roster, &(&1.id == reply.id and &1.name == "Tester"))
   end
 
   test "moves arriving faster than the cooldown are rejected", %{socket: socket} do

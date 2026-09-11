@@ -66,6 +66,12 @@ defmodule MmoLiteWeb.GameChannel do
   end
 
   @impl true
+  def handle_info({:roster_update, payload}, socket) do
+    push(socket, "roster_update", payload)
+    {:noreply, socket}
+  end
+
+  @impl true
   def terminate(_reason, socket) do
     with token when is_binary(token) <- socket.assigns[:token],
          %Player{} = player <- Players.get(token),
@@ -101,6 +107,7 @@ defmodule MmoLiteWeb.GameChannel do
   defp join_reply(player, visible) do
     %{
       token: player.token,
+      id: player.id,
       name: player.name,
       floor: player.floor,
       position: Wire.cell(player.position),
