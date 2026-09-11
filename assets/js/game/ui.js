@@ -8,9 +8,14 @@ export class GameUI {
   constructor() {
     this.player = null
     this.buffExpiresAtLocal = null
-    // Called whenever power or level may have changed (new stats, buff expiry).
+    this.evasionExpiresAtLocal = null
+    // Called whenever power, level, or evasion may have changed (new stats,
+    // buff/evasion expiry).
     this.onStatsChange = null
-    this._tickTimer = setInterval(() => this.tickBuff(), 250)
+    this._tickTimer = setInterval(() => {
+      this.tickBuff()
+      this.tickEvasion()
+    }, 250)
   }
 
   // -- name overlay ---------------------------------------------------------
@@ -63,7 +68,9 @@ export class GameUI {
 
     this.player = player
     this.buffExpiresAtLocal = player.buff ? Date.now() + player.buff.remaining_ms : null
+    this.evasionExpiresAtLocal = player.evasion ? Date.now() + player.evasion.remaining_ms : null
     this.tickBuff()
+    this.tickEvasion()
     this.renderPower()
   }
 
@@ -75,6 +82,12 @@ export class GameUI {
     const buffDamage = this.buffExpiresAtLocal ? this.player.buff.damage : 0
     const weaponDamage = this.player.equipment.weapon ? this.player.equipment.weapon.value : 0
     return this.player.level + weaponDamage + buffDamage
+  }
+
+  // Whether a recent flee's immunity is still active — walking into a
+  // monster while this holds just steps through it instead of fighting.
+  evading() {
+    return !!this.evasionExpiresAtLocal && this.evasionExpiresAtLocal > Date.now()
   }
 
   renderPower() {
@@ -99,6 +112,25 @@ export class GameUI {
 
     indicator.classList.add("active")
     el("buff-timer").textContent = `${(remaining / 1000).toFixed(1)}s`
+  }
+
+  tickEvasion() {
+    const indicator = el("evasion-indicator")
+    if (!this.evasionExpiresAtLocal) {
+      indicator.classList.remove("active")
+      return
+    }
+
+    const remaining = this.evasionExpiresAtLocal - Date.now()
+    if (remaining <= 0) {
+      this.evasionExpiresAtLocal = null
+      indicator.classList.remove("active")
+      this.renderPower()
+      return
+    }
+
+    indicator.classList.add("active")
+    el("evasion-timer").textContent = `${(remaining / 1000).toFixed(1)}s`
   }
 
   // -- combat log -------------------------------------------------------

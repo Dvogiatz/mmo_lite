@@ -19,6 +19,9 @@ defmodule MmoLite.Player do
     :armor,
     :boots,
     :buff,
+    # Set on a flee (see MmoLite.Floor's :flee handling) — while active,
+    # monster contact is skipped entirely instead of starting a fight.
+    :evasion,
     :last_seen
   ]
 
@@ -39,6 +42,7 @@ defmodule MmoLite.Player do
       armor: nil,
       boots: Loot.starter_boots(),
       buff: nil,
+      evasion: nil,
       last_seen: System.monotonic_time(:millisecond)
     }
   end
@@ -104,10 +108,18 @@ defmodule MmoLite.Player do
         weapon: nil,
         armor: nil,
         boots: Loot.starter_boots(),
-        buff: nil
+        buff: nil,
+        evasion: nil
     }
   end
 
   @doc "Whether the player's Killing Spree buff is currently active."
   def buff_active?(%__MODULE__{} = player), do: buff_damage(player) > 0
+
+  @doc "Whether the player is currently immune to combat contact after a flee (see `MmoLite.Config.flee_immunity_ms/0`)."
+  def evading?(%__MODULE__{evasion: nil}), do: false
+
+  def evading?(%__MODULE__{evasion: %{expires_at: expires_at}}) do
+    System.monotonic_time(:millisecond) < expires_at
+  end
 end

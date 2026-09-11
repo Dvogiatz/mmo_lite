@@ -101,12 +101,15 @@ defmodule MmoLite.Floor do
       {:ok, dest} ->
         case find_monster_at(state, dest) do
           nil ->
-            Players.update(token, &%{&1 | position: dest})
-            state = broadcast(state, [player.position, dest], include: token)
-            {:reply, %{outcome: :moved, position: Wire.cell(dest)}, state}
+            do_move(state, token, player, dest)
 
           monster ->
-            handle_combat(state, token, player, monster, dest)
+            if Player.evading?(player) do
+              {:reply, result, state} = do_move(state, token, player, dest)
+              {:reply, Map.put(result, :passed_through, monster_view(monster)), state}
+            else
+              handle_combat(state, token, player, monster, dest)
+            end
         end
     end
   end
@@ -155,6 +158,15 @@ defmodule MmoLite.Floor do
     else
       {:noreply, state}
     end
+  end
+
+  # A step onto an unoccupied cell — also used to walk straight through a
+  # monster's cell while evading, since that's otherwise identical to a
+  # plain move.
+  defp do_move(state, token, player, dest) do
+    Players.update(token, &%{&1 | position: dest})
+    state = broadcast(state, [player.position, dest], include: token)
+    {:reply, %{outcome: :moved, position: Wire.cell(dest)}, state}
   end
 
   # -- combat ----------------------------------------------------------------
@@ -208,9 +220,20 @@ defmodule MmoLite.Floor do
     {:reply, result, state}
   end
 
-  defp handle_non_kill(state, _token, player, :flee, roll) do
-    # Nothing on the floor changed, so nobody needs an update.
-    {:reply, %{outcome: :flee, position: Wire.cell(player.position), roll: roll}, state}
+  defp handle_non_kill(state, token, player, :flee, roll) do
+    evasion_ms = Config.flee_immunity_ms()
+    expires_at = System.monotonic_time(:millisecond) + evasion_ms
+    Players.update(token, &%{&1 | evasion: %{expires_at: expires_at}})
+
+    # Nothing on the floor itself changed, so nobody else needs an update.
+    result = %{
+      outcome: :flee,
+      position: Wire.cell(player.position),
+      roll: roll,
+      evasion_ms: evasion_ms
+    }
+
+    {:reply, result, state}
   end
 
   defp handle_non_kill(state, token, player, :loss, roll) do

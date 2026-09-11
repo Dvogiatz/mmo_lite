@@ -109,6 +109,7 @@ defmodule MmoLiteWeb.GameChannel do
       max_hearts: Player.max_hearts(player),
       equipment: equipment_view(player),
       buff: buff_view(player),
+      evasion: evasion_view(player),
       move_cooldown_ms: Config.move_cooldown_ms(),
       visible: visible
     }
@@ -149,6 +150,7 @@ defmodule MmoLiteWeb.GameChannel do
       max_hearts: Player.max_hearts(player),
       equipment: equipment_view(player),
       buff: buff_view(player),
+      evasion: evasion_view(player),
       floor: player.floor,
       position: Wire.cell(player.position)
     }
@@ -171,6 +173,13 @@ defmodule MmoLiteWeb.GameChannel do
     if Player.buff_active?(player) do
       remaining_ms = player.buff.expires_at - System.monotonic_time(:millisecond)
       %{remaining_ms: max(remaining_ms, 0), damage: Config.killing_spree_damage()}
+    end
+  end
+
+  defp evasion_view(player) do
+    if Player.evading?(player) do
+      remaining_ms = player.evasion.expires_at - System.monotonic_time(:millisecond)
+      %{remaining_ms: max(remaining_ms, 0)}
     end
   end
 end

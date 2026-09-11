@@ -36,6 +36,10 @@ defmodule MmoLite.Config do
   @killing_spree_damage 5
   @killing_spree_duration_ms 6_000
 
+  # How long a flee grants immunity to combat contact — enough to walk
+  # through whatever was blocking the way and find another path.
+  @flee_immunity_ms 4_000
+
   def maze_width, do: @maze_width
   def maze_height, do: @maze_height
   def braid_percent, do: @braid_percent
@@ -57,6 +61,8 @@ defmodule MmoLite.Config do
 
   def killing_spree_damage, do: @killing_spree_damage
   def killing_spree_duration_ms, do: @killing_spree_duration_ms
+
+  def flee_immunity_ms, do: @flee_immunity_ms
 
   @doc """
   Minimum player level required to use floor `n`'s door, roughly tracking

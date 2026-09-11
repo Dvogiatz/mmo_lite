@@ -14,6 +14,8 @@ const DIR_BITS = { up: NORTH, down: SOUTH, left: WEST, right: EAST }
 // Fight odds against a monster, per MmoLite.Combat.resolve/3: more power is
 // an outright win, equal power wins on a 2-6, less wins only on a 6.
 const ODDS_COLORS = { sure: "#4cd07d", even: "#e0b84b", risky: "#ff5c5c" }
+// Matches --evasion in assets/css/app.css.
+const EVASION_COLOR = "#9b6bff"
 
 export class GameRenderer {
   constructor(canvas) {
@@ -194,6 +196,9 @@ export class GameRenderer {
   }
 
   oddsColor(monsterPower) {
+    // Evasive: contact never starts a fight, so power comparisons don't
+    // apply — read as "safe to walk through" instead.
+    if (this.stats && this.stats.evading) return EVASION_COLOR
     if (!this.stats || this.stats.power < monsterPower) return ODDS_COLORS.risky
     return this.stats.power > monsterPower ? ODDS_COLORS.sure : ODDS_COLORS.even
   }
@@ -220,14 +225,25 @@ export class GameRenderer {
     const { ctx, cellPx } = this
     const x = half * cellPx + cellPx / 2
     const y = half * cellPx + cellPx / 2
+    const evading = this.stats && this.stats.evading
 
     ctx.fillStyle = "#fff"
     ctx.beginPath()
     ctx.arc(x, y, cellPx * 0.28, 0, Math.PI * 2)
     ctx.fill()
-    ctx.strokeStyle = "#5b8cff"
+    ctx.strokeStyle = evading ? EVASION_COLOR : "#5b8cff"
     ctx.lineWidth = 3
     ctx.stroke()
+
+    if (evading) {
+      ctx.strokeStyle = EVASION_COLOR
+      ctx.lineWidth = 2
+      ctx.setLineDash([4, 3])
+      ctx.beginPath()
+      ctx.arc(x, y, cellPx * 0.42, 0, Math.PI * 2)
+      ctx.stroke()
+      ctx.setLineDash([])
+    }
   }
 
   // Whether the walls already known client-side allow stepping `dir` from

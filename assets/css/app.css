@@ -8,6 +8,8 @@
   --accent: #5b8cff;
   --danger: #ff5c5c;
   --gold: #e0b84b;
+  /* Matches EVASION_COLOR in assets/js/game/canvas.js. */
+  --evasion: #9b6bff;
 }
 
 * {
@@ -254,6 +256,19 @@ body {
 }
 
 #buff-indicator.active {
+  display: flex;
+}
+
+#evasion-indicator {
+  display: none;
+  align-items: center;
+  gap: 6px;
+  color: var(--evasion);
+  font-size: 13px;
+  cursor: help;
+}
+
+#evasion-indicator.active {
   display: flex;
 }
 

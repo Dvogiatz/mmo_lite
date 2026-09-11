@@ -13,6 +13,31 @@ defmodule MmoLite.PlayerTest do
       assert player.hearts == 5
       assert Player.max_hearts(player) == 5
       assert Player.boots_bonus(player) == 1
+      refute Player.evading?(player)
+    end
+  end
+
+  describe "evading?/1" do
+    test "false with no evasion set" do
+      refute Player.evading?(Player.new("tok", "Hero"))
+    end
+
+    test "true while the expiry is still in the future" do
+      player = %{
+        Player.new("tok", "Hero")
+        | evasion: %{expires_at: System.monotonic_time(:millisecond) + 10_000}
+      }
+
+      assert Player.evading?(player)
+    end
+
+    test "false once the expiry has passed" do
+      player = %{
+        Player.new("tok", "Hero")
+        | evasion: %{expires_at: System.monotonic_time(:millisecond) - 1}
+      }
+
+      refute Player.evading?(player)
     end
   end
 
@@ -119,6 +144,7 @@ defmodule MmoLite.PlayerTest do
         |> Player.equip(weapon)
         |> Player.equip(armor)
         |> Map.put(:hearts, 0)
+        |> Map.put(:evasion, %{expires_at: System.monotonic_time(:millisecond) + 10_000})
 
       reset = Player.full_reset(player)
 
@@ -128,6 +154,7 @@ defmodule MmoLite.PlayerTest do
       assert reset.hearts == 5
       assert reset.floor == 0
       assert reset.position == nil
+      refute Player.evading?(reset)
     end
   end
 end

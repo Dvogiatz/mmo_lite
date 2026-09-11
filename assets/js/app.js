@@ -32,6 +32,12 @@ function lootMessage(result) {
 }
 
 function describeOutcome(result, ui) {
+  // Set alongside outcome "moved" when evasion let a step carry straight
+  // through a monster's cell instead of starting a fight.
+  if (result.passed_through) {
+    ui.log(`Phased through a Lv.${result.passed_through.level} monster while evasive.`, "flee")
+  }
+
   switch (result.outcome) {
     case "moved":
     case "blocked":
@@ -62,7 +68,11 @@ function describeOutcome(result, ui) {
       return
 
     case "flee":
-      ui.log(`Fled from the monster (rolled ${result.roll}).`, "flee")
+      ui.log(
+        `Fled from the monster (rolled ${result.roll}) — evasive for ${result.evasion_ms / 1000}s, ` +
+          `walk through enemies to find another way.`,
+        "flee"
+      )
       return
 
     case "loss":
@@ -82,7 +92,7 @@ async function main() {
   const conn = new GameConnection()
 
   ui.onStatsChange = () => {
-    renderer.setPlayerStats({ power: ui.power(), level: ui.player.level })
+    renderer.setPlayerStats({ power: ui.power(), level: ui.player.level, evading: ui.evading() })
     updateDoorPrompt()
   }
 
