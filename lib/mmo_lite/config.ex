@@ -13,8 +13,9 @@ defmodule MmoLite.Config do
   # escape route around a monster, not just one dead-end corridor into it).
   @braid_percent 0.6
 
+  # Also the floor for max_hearts (see MmoLite.Player.max_hearts/1) — armor
+  # is the only thing that raises the cap above this.
   @starting_hearts 5
-  @max_hearts 10
 
   @vision_radius 6
 
@@ -32,11 +33,6 @@ defmodule MmoLite.Config do
 
   @floor_idle_teardown_ms 30_000
 
-  # How many of a player's best items are kept and shown; all looted damage
-  # still stacks into their power, this just keeps the list (and every
-  # stats payload) from growing without bound.
-  @equipment_listed 8
-
   @killing_spree_damage 5
   @killing_spree_duration_ms 6_000
 
@@ -45,7 +41,6 @@ defmodule MmoLite.Config do
   def braid_percent, do: @braid_percent
 
   def starting_hearts, do: @starting_hearts
-  def max_hearts, do: @max_hearts
 
   def vision_radius, do: @vision_radius
 
@@ -59,8 +54,6 @@ defmodule MmoLite.Config do
   def reap_timeout_ms, do: @reap_timeout_ms
 
   def floor_idle_teardown_ms, do: @floor_idle_teardown_ms
-
-  def equipment_listed, do: @equipment_listed
 
   def killing_spree_damage, do: @killing_spree_damage
   def killing_spree_duration_ms, do: @killing_spree_duration_ms

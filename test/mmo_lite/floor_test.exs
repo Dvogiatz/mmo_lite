@@ -3,7 +3,7 @@ defmodule MmoLite.FloorTest do
   # the application — not async, since floor numbers are shared global state.
   use ExUnit.Case, async: false
 
-  alias MmoLite.{Config, Floor, FloorSupervisor, Maze, Monsters, Players, Wire}
+  alias MmoLite.{Config, Floor, FloorSupervisor, Loot, Maze, Monsters, Players, Wire}
 
   setup do
     # A random-ish floor number per test avoids collisions with any other
@@ -70,6 +70,26 @@ defmodule MmoLite.FloorTest do
     assert Players.get(token).floor == next_floor
   end
 
+  test "advancing through the door fully heals hearts, but a level bump alone does not", %{
+    floor: floor,
+    token: token
+  } do
+    required = Config.door_level_requirement(floor)
+    Players.update(token, &%{&1 | floor: floor, level: required, hearts: 1})
+    {:ok, _visible} = Floor.join(floor, token, self())
+
+    Players.update(token, fn p -> %{p | level: p.level + 5} end)
+    assert Players.get(token).hearts == 1
+
+    [{pid, _}] = Registry.lookup(MmoLite.FloorRegistry, floor)
+    %{maze: maze} = :sys.get_state(pid)
+    Players.update(token, &%{&1 | position: maze.door})
+
+    assert {:ok, _next_floor} = Floor.enter_door(floor, token)
+    player = Players.get(token)
+    assert player.hearts == MmoLite.Player.max_hearts(player)
+  end
+
   test "leave removes the player and does not crash on an empty floor", %{
     floor: floor,
     token: token
@@ -131,7 +151,7 @@ defmodule MmoLite.FloorTest do
     end
   end
 
-  test "walking into a far-weaker monster is an outright win with XP/loot/level-up", %{
+  test "walking into a far-weaker monster is an outright win with loot/level-up", %{
     floor: floor,
     token: token
   } do
@@ -145,11 +165,10 @@ defmodule MmoLite.FloorTest do
     assert result.outcome == :win
     assert result.position == Wire.cell(monster_pos)
     assert result.levels_gained >= 1
+    assert result.loot.slot in [:weapon, :armor, :boots]
 
     player = Players.get(token)
     assert player.level > 1
-    assert player.equipment != []
-    assert player.equipment_damage == result.loot.damage
     assert player.hearts >= Config.starting_hearts()
   end
 
@@ -160,23 +179,25 @@ defmodule MmoLite.FloorTest do
     Players.update(token, &%{&1 | floor: floor, hearts: 1})
     {:ok, _visible} = Floor.join(floor, token, self())
 
-    # An upset win (rolling a 6) grants bonus hearts *and* loot mid-loop, so
-    # a later loss might not zero hearts out immediately — it can instead
-    # transfer the player to an easier floor (correct per spec). The loop
-    # has to follow the player across that transfer rather than keep
-    # hammering the original floor, or it just orphans them.
+    # An upset win (rolling a 6) grants loot mid-loop; if that loot is a
+    # better armor than currently equipped, it also grants a few bonus
+    # hearts (see Player.equip/2), so a later loss might not zero hearts
+    # out immediately — it can instead transfer the player to an easier
+    # floor (correct per spec). The loop has to follow the player across
+    # that transfer rather than keep hammering the original floor, or it
+    # just orphans them.
     #
     # It also has to keep re-deriving the monster's power from the
-    # player's *current* power (rather than a fixed stat) — loot damage
+    # player's *current* power (rather than a fixed stat) — weapon damage
     # scales with this test's floor number, which is a large globally
     # unique integer, so a lucky early upset-win could otherwise hand the
-    # player enough equipment_damage to out-power a fixed monster forever
-    # and the loop would never see another loss.
-    # Every upset-win grants the max +5 hearts (capped at max_hearts) since
-    # the monster is always ~1000 levels above the player; every loss costs
-    # 1. Hearts only trend downward once they saturate at the cap, so this
-    # needs real headroom, not just a handful of attempts, to reliably
-    # reach 0 — 300 gives a huge margin over the ~15-attempt expectation.
+    # player enough weapon power to out-power a fixed monster forever and
+    # the loop would never see another loss.
+    # Armor's hearts bonus saturates at +5 once the best possible armor
+    # (value 5) is equipped, after which every loss only ever costs 1 with
+    # no further gains — so this needs real headroom, not just a handful
+    # of attempts, to reliably reach 0. 300 gives a huge margin over the
+    # ~15-attempt expectation.
     result =
       Enum.reduce_while(1..300, floor, fn _attempt, current_floor ->
         overwhelming_power = MmoLite.Player.power(Players.get(token)) + 1000
@@ -205,7 +226,9 @@ defmodule MmoLite.FloorTest do
     player = Players.get(token)
     assert player.floor == 0
     assert player.hearts == Config.starting_hearts()
-    assert player.equipment == []
+    assert player.weapon == nil
+    assert player.armor == nil
+    assert player.boots == Loot.starter_boots()
   end
 
   # Places a fresh monster one step away from the player's *current*

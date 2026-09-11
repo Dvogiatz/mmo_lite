@@ -1,13 +1,12 @@
 defmodule MmoLite.Leveling do
   @moduledoc """
-  XP/leveling math per spec §7. Leveling here is formula-driven per kill
-  rather than an accumulating XP-threshold curve: every kill grants at
-  least one level, plus one more for every full 5 levels the monster is
-  above the player. `xp` is tracked as a cumulative display counter
-  alongside it.
+  Level math per spec §7. Leveling here is formula-driven per kill rather
+  than an accumulating XP-threshold curve: every kill grants at least one
+  level, plus one more for every full 5 levels the monster is above the
+  player. Hearts aren't part of this — they're tied to equipped armor
+  (see `MmoLite.Player.max_hearts/1`) and refilled by advancing a floor,
+  not by leveling up.
   """
-
-  alias MmoLite.Config
 
   @doc """
   How many levels a kill against `monster_level` grants a player currently
@@ -21,21 +20,9 @@ defmodule MmoLite.Leveling do
     1 + div(gap, 5)
   end
 
-  @doc "Display XP awarded for a kill (a flavor counter, not a level threshold)."
-  def xp_gained(monster_level), do: monster_level
-
-  @doc """
-  Applies a kill's rewards to level/xp/hearts. Each level gained grants
-  +1 heart (capped at `Config.max_hearts/0`).
-
-  Returns `{new_level, new_xp, new_hearts, levels_gained}`.
-  """
-  def apply_kill(level, xp, hearts, monster_level) do
+  @doc "Applies a kill's level reward. Returns `{new_level, levels_gained}`."
+  def apply_kill(level, monster_level) do
     gained = levels_gained(level, monster_level)
-    new_level = level + gained
-    new_xp = xp + xp_gained(monster_level)
-    new_hearts = min(hearts + gained, Config.max_hearts())
-
-    {new_level, new_xp, new_hearts, gained}
+    {level + gained, gained}
   end
 end

@@ -24,19 +24,8 @@ defmodule MmoLite.LevelingTest do
     assert Leveling.levels_gained(1, 1000) == 200
   end
 
-  test "apply_kill grants +1 heart per level gained, capped at max_hearts" do
-    {new_level, new_xp, new_hearts, gained} = Leveling.apply_kill(5, 0, 5, 10)
-
-    assert gained == 2
-    assert new_level == 7
-    assert new_hearts == 7
-    assert new_xp == 10
-  end
-
-  test "apply_kill never grants hearts above the configured cap" do
-    max_hearts = MmoLite.Config.max_hearts()
-    {_level, _xp, new_hearts, _gained} = Leveling.apply_kill(1, 0, max_hearts - 1, 1000)
-
-    assert new_hearts == max_hearts
+  test "apply_kill returns the new level and how many were gained" do
+    assert Leveling.apply_kill(5, 10) == {7, 2}
+    assert Leveling.apply_kill(5, 5) == {6, 1}
   end
 end

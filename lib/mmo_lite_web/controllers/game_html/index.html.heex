@@ -22,16 +22,10 @@
       <h3>Level</h3>
       <div id="level-xp">
         <span id="level-value">Lv. 1</span>
-        <span
-          id="xp-value"
-          title="Total XP earned — a lifetime counter, not a bar to fill. Killing a monster grants a level directly (more for a much higher-level monster); XP doesn't gate that."
-        >
-          0 XP
-        </span>
       </div>
       <div
         id="power-value"
-        title="Your attack power: level + equipment damage + active buff. Compare this to a monster's level before engaging it — a tie still goes to the 1d6 roll, it's not an automatic win."
+        title="Your attack power: level + weapon damage + active buff. Compare this to a monster's level before engaging it — a tie still goes to the 1d6 roll, it's not an automatic win."
       >
         Power: 1
       </div>
@@ -51,12 +45,20 @@
     </div>
 
     <div class="panel-box">
-      <h3>Best equipment</h3>
-      <ul id="equipment-list"></ul>
+      <h3>Equipment</h3>
       <div
-        id="gear-total"
-        title="Every item you've looted adds its damage to your power — the list only shows the best few."
+        id="equipment-slots"
+        title="One item per slot — a new drop only replaces what's equipped if it's strictly better."
       >
+        <div class="slot-row">
+          <span class="slot-label">Weapon</span><span id="weapon-slot">(empty)</span>
+        </div>
+        <div class="slot-row">
+          <span class="slot-label">Armor</span><span id="armor-slot">(empty)</span>
+        </div>
+        <div class="slot-row">
+          <span class="slot-label">Boots</span><span id="boots-slot">(empty)</span>
+        </div>
       </div>
     </div>
 

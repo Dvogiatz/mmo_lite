@@ -3,17 +3,30 @@ defmodule MmoLite.LootTest do
 
   alias MmoLite.Loot
 
-  test "generate produces an item with positive damage tied loosely to floor depth" do
+  test "generate produces an item in one of the three slots with a positive value" do
     item = Loot.generate(3)
 
-    assert item.damage > 0
+    assert item.slot in [:weapon, :armor, :boots]
+    assert item.value > 0
     assert item.tier in [:common, :uncommon, :rare, :epic]
     assert is_binary(item.name)
   end
 
-  test "best/2 keeps the highest-damage items, best first" do
-    items = [%Loot{damage: 3}, %Loot{damage: 5}, %Loot{damage: 2}]
-    assert Loot.best(items, 2) == [%Loot{damage: 5}, %Loot{damage: 3}]
-    assert Loot.best([], 2) == []
+  test "starter_boots is a common-tier boots item" do
+    boots = Loot.starter_boots()
+
+    assert boots.slot == :boots
+    assert boots.tier == :common
+    assert boots.value == 1
+  end
+
+  test "better?/2 treats no current item as always beatable" do
+    assert Loot.better?(nil, %Loot{value: 0})
+  end
+
+  test "better?/2 requires a strictly higher value to count as an upgrade" do
+    assert Loot.better?(%Loot{value: 3}, %Loot{value: 5})
+    refute Loot.better?(%Loot{value: 5}, %Loot{value: 5})
+    refute Loot.better?(%Loot{value: 5}, %Loot{value: 3})
   end
 end

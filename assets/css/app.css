@@ -208,11 +208,6 @@ body {
   margin-bottom: 6px;
 }
 
-#xp-value {
-  color: var(--text-dim);
-  cursor: help;
-}
-
 #power-value {
   font-size: 13px;
   color: var(--gold);
@@ -262,7 +257,6 @@ body {
   display: flex;
 }
 
-#equipment-list,
 #combat-log {
   list-style: none;
   margin: 0;
@@ -273,17 +267,25 @@ body {
   overflow-y: auto;
 }
 
-#equipment-list li,
 #combat-log li {
   padding: 3px 0;
   border-bottom: 1px solid var(--panel-border);
 }
 
-#gear-total {
-  margin-top: 6px;
-  font-size: 12px;
-  color: var(--gold);
+#equipment-slots {
   cursor: help;
+}
+
+.slot-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  padding: 3px 0;
+  border-bottom: 1px solid var(--panel-border);
+}
+
+.slot-label {
+  color: var(--text-dim);
 }
 
 #combat-log li.win {

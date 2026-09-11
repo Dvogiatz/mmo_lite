@@ -23,6 +23,14 @@ const TOUCH = window.matchMedia("(pointer: coarse)").matches
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 
+// Every kill drops something, but best-of-slot equipping means it isn't
+// always kept — say which happened rather than staying silent on a discard.
+function lootMessage(result) {
+  return result.equipped
+    ? `found ${result.loot.name}, equipped!`
+    : `found ${result.loot.name}, but kept your current ${result.loot.slot}.`
+}
+
 function describeOutcome(result, ui) {
   switch (result.outcome) {
     case "moved":
@@ -31,7 +39,7 @@ function describeOutcome(result, ui) {
 
     case "win":
       ui.log(
-        `Defeated a Lv.${result.monster.level} monster — found ${result.loot.name}! ` +
+        `Defeated a Lv.${result.monster.level} monster — ${lootMessage(result)} ` +
           `+${result.levels_gained} level(s), now Lv.${result.level}.`,
         "win"
       )
@@ -40,7 +48,7 @@ function describeOutcome(result, ui) {
     case "tie_win":
       ui.log(
         `Won an evenly-matched fight (rolled ${result.roll})! Defeated a Lv.${result.monster.level} ` +
-          `monster — +${result.levels_gained} level(s), now Lv.${result.level}.`,
+          `monster — ${lootMessage(result)} +${result.levels_gained} level(s), now Lv.${result.level}.`,
         "win"
       )
       return
@@ -48,7 +56,7 @@ function describeOutcome(result, ui) {
     case "upset_win":
       ui.log(
         `Upset victory (rolled 6)! Defeated a Lv.${result.monster.level} monster — ` +
-          `+${result.levels_gained} level(s), now Lv.${result.level}.`,
+          `${lootMessage(result)} +${result.levels_gained} level(s), now Lv.${result.level}.`,
         "win"
       )
       return

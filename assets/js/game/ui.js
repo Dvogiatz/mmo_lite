@@ -1,5 +1,9 @@
 const el = (id) => document.getElementById(id)
 
+function renderSlot(id, item, unit) {
+  el(id).textContent = item ? `${item.name} (+${item.value} ${unit})` : "(empty)"
+}
+
 export class GameUI {
   constructor() {
     this.player = null
@@ -52,22 +56,10 @@ export class GameUI {
     el("hearts-count").textContent = `${player.hearts} / ${player.max_hearts}`
 
     el("level-value").textContent = `Lv. ${player.level}`
-    el("xp-value").textContent = `${player.xp} XP`
 
-    const list = el("equipment-list")
-    list.innerHTML = ""
-    if (player.equipment.length === 0) {
-      const li = document.createElement("li")
-      li.textContent = "(empty)"
-      list.appendChild(li)
-    } else {
-      for (const item of player.equipment) {
-        const li = document.createElement("li")
-        li.textContent = `${item.name} (+${item.damage})`
-        list.appendChild(li)
-      }
-    }
-    el("gear-total").textContent = `All loot: +${player.equipment_damage} damage`
+    renderSlot("weapon-slot", player.equipment.weapon, "dmg")
+    renderSlot("armor-slot", player.equipment.armor, "hearts")
+    renderSlot("boots-slot", player.equipment.boots, "flee")
 
     this.player = player
     this.buffExpiresAtLocal = player.buff ? Date.now() + player.buff.remaining_ms : null
@@ -75,13 +67,14 @@ export class GameUI {
     this.renderPower()
   }
 
-  // Current attack power: level + all looted equipment damage + the Killing
+  // Current attack power: level + equipped weapon's damage + the Killing
   // Spree buff while it lasts — the same sum as MmoLite.Player.power/1,
   // which combat compares against a monster's level + armor.
   power() {
     if (!this.player) return 0
     const buffDamage = this.buffExpiresAtLocal ? this.player.buff.damage : 0
-    return this.player.level + this.player.equipment_damage + buffDamage
+    const weaponDamage = this.player.equipment.weapon ? this.player.equipment.weapon.value : 0
+    return this.player.level + weaponDamage + buffDamage
   }
 
   renderPower() {

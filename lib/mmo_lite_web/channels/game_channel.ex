@@ -105,11 +105,9 @@ defmodule MmoLiteWeb.GameChannel do
       floor: player.floor,
       position: Wire.cell(player.position),
       level: player.level,
-      xp: player.xp,
       hearts: player.hearts,
-      max_hearts: Config.max_hearts(),
-      equipment: Enum.map(player.equipment, &equipment_view/1),
-      equipment_damage: player.equipment_damage,
+      max_hearts: Player.max_hearts(player),
+      equipment: equipment_view(player),
       buff: buff_view(player),
       move_cooldown_ms: Config.move_cooldown_ms(),
       visible: visible
@@ -147,18 +145,27 @@ defmodule MmoLiteWeb.GameChannel do
 
     %{
       level: player.level,
-      xp: player.xp,
       hearts: player.hearts,
-      max_hearts: Config.max_hearts(),
-      equipment: Enum.map(player.equipment, &equipment_view/1),
-      equipment_damage: player.equipment_damage,
+      max_hearts: Player.max_hearts(player),
+      equipment: equipment_view(player),
       buff: buff_view(player),
       floor: player.floor,
       position: Wire.cell(player.position)
     }
   end
 
-  defp equipment_view(item), do: Map.take(item, [:id, :name, :damage, :tier])
+  # One entry per slot (weapon/armor/boots), `nil` where nothing's equipped —
+  # not a list, since best-of-slot means there's at most one item per slot.
+  defp equipment_view(player) do
+    %{
+      weapon: item_view(player.weapon),
+      armor: item_view(player.armor),
+      boots: item_view(player.boots)
+    }
+  end
+
+  defp item_view(nil), do: nil
+  defp item_view(item), do: Map.take(item, [:id, :name, :tier, :value])
 
   defp buff_view(player) do
     if Player.buff_active?(player) do

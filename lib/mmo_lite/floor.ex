@@ -6,7 +6,7 @@ defmodule MmoLite.Floor do
   empty for a while (spec allows discarding a floor's state once nobody's
   on it; re-entering later regenerates a fresh maze).
 
-  All game-state mutation for players (level/xp/hearts/equipment/position)
+  All game-state mutation for players (level/hearts/equipment/position)
   goes through `MmoLite.Players`, which stays the single source of truth —
   this process only tracks *who is currently connected here* (token =>
   channel pid) and the floor's own maze/monster state, entirely
@@ -125,7 +125,13 @@ defmodule MmoLite.Floor do
 
       true ->
         next_floor = state.floor_num + 1
-        Players.update(token, &%{&1 | floor: next_floor, position: nil})
+        # Advancing floors is the only thing that refills hearts (per spec —
+        # leveling up no longer does).
+        Players.update(
+          token,
+          &%{&1 | floor: next_floor, position: nil, hearts: Player.max_hearts(&1)}
+        )
+
         {:reply, {:ok, next_floor}, remove_player(state, token, player.position)}
     end
   end
@@ -156,7 +162,7 @@ defmodule MmoLite.Floor do
   defp handle_combat(state, token, player, monster, dest) do
     player_power = Player.power(player)
     monster_power = Combat.monster_power(monster.level, monster.armor)
-    {outcome, roll} = Combat.resolve(player_power, monster_power)
+    {outcome, roll} = Combat.resolve(player_power, monster_power, Player.boots_bonus(player))
 
     if Combat.kill?(outcome) do
       handle_kill(state, token, player, monster, dest, outcome, roll)
@@ -167,24 +173,17 @@ defmodule MmoLite.Floor do
 
   defp handle_kill(state, token, player, monster, dest, outcome, roll) do
     loot = Loot.generate(state.floor_num)
-
-    {new_level, new_xp, new_hearts, levels_gained} =
-      Leveling.apply_kill(player.level, player.xp, player.hearts, monster.level)
-
+    # Decided against the *pre-kill* slot so the client can tell "found
+    # nothing worth keeping" apart from "found nothing at all" — every kill
+    # always drops something, but best-of-slot means it isn't always kept.
+    equipped? = Loot.better?(Map.fetch!(player, loot.slot), loot)
+    {new_level, levels_gained} = Leveling.apply_kill(player.level, monster.level)
     buff = %{expires_at: System.monotonic_time(:millisecond) + Config.killing_spree_duration_ms()}
 
-    Players.update(token, fn p ->
-      %{
-        p
-        | position: dest,
-          level: new_level,
-          xp: new_xp,
-          hearts: new_hearts,
-          equipment: Loot.best([loot | p.equipment], Config.equipment_listed()),
-          equipment_damage: p.equipment_damage + loot.damage,
-          buff: buff
-      }
-    end)
+    updated =
+      Players.update(token, fn p ->
+        %{p | position: dest, level: new_level, buff: buff} |> Player.equip(loot)
+      end)
 
     state =
       state
@@ -199,10 +198,10 @@ defmodule MmoLite.Floor do
       position: Wire.cell(dest),
       monster: monster_view(monster),
       loot: loot_view(loot),
+      equipped: equipped?,
       roll: roll,
       level: new_level,
-      xp: new_xp,
-      hearts: new_hearts,
+      hearts: updated.hearts,
       levels_gained: levels_gained
     }
 
@@ -360,7 +359,7 @@ defmodule MmoLite.Floor do
     }
   end
 
-  defp loot_view(loot), do: Map.take(loot, [:id, :name, :damage, :tier])
+  defp loot_view(loot), do: Map.take(loot, [:id, :slot, :name, :tier, :value])
 
   defp player_view(player),
     do: %{name: player.name, position: Wire.cell(player.position), level: player.level}

@@ -1,35 +1,78 @@
 defmodule MmoLite.Loot do
   @moduledoc """
-  Equipment generation (spec §9). Loot only drops from kills, has no
-  currency behind it, and its rarity/tier is loosely tied to the floor's
-  monster level range so gear stays roughly relevant to where it dropped
-  ("munchkin style" — `equipment_damage` is a direct, stacking power stat).
+  Equipment generation (spec §9). Every player has exactly one item per
+  slot (`:weapon`, `:armor`, `:boots`); a kill's drop only replaces the
+  currently equipped item in its slot if its `value` is strictly higher
+  (see `MmoLite.Player.equip/2`) — so power is bounded by the single best
+  item found per slot, not by how many kills a player has racked up.
+
+  What `value` means depends on the slot:
+
+    * `:weapon` — flat damage added to attack power, scaling with the
+      floor it dropped on (deeper floors drop stronger weapons).
+    * `:armor` — bonus to max hearts, floor-independent.
+    * `:boots` — bonus to the flee chance on an outmatched combat roll
+      (see `MmoLite.Combat.resolve/4`), floor-independent and capped by
+      the tier table itself (epic is already the highest useful value).
   """
 
-  defstruct [:id, :name, :damage, :tier]
+  defstruct [:id, :slot, :name, :tier, :value]
 
+  @slots [:weapon, :armor, :boots]
   @tier_weights [common: 60, uncommon: 25, rare: 12, epic: 3]
-  @tier_multiplier %{common: 1, uncommon: 2, rare: 3, epic: 5}
-  @item_names ~w(Blade Axe Hammer Dagger Spear Claw Talisman Gauntlet Shard Fang)
 
-  @doc "Generates one piece of loot for a kill on `floor`."
+  @weapon_tier_multiplier %{common: 1, uncommon: 2, rare: 3, epic: 5}
+  @armor_tier_bonus %{common: 0, uncommon: 1, rare: 2, epic: 3}
+  @boots_tier_bonus %{common: 1, uncommon: 2, rare: 3, epic: 4}
+
+  @item_names %{
+    weapon: ~w(Blade Axe Hammer Dagger Spear Claw Talisman Gauntlet Shard Fang),
+    armor: ~w(Plate Mail Hide Cloak Vest Breastplate Aegis Ward),
+    boots: ~w(Boots Greaves Sandals Treads Striders)
+  }
+
+  @doc "Generates one piece of loot for a kill on `floor`, for a random slot."
   def generate(floor) do
+    slot = Enum.random(@slots)
     tier = roll_tier()
-    base = floor + 1
-    damage = base * Map.fetch!(@tier_multiplier, tier) + Enum.random(0..2)
 
     %__MODULE__{
       id: System.unique_integer([:positive, :monotonic]),
-      name: "#{tier |> to_string() |> String.capitalize()} #{Enum.random(@item_names)}",
-      damage: damage,
-      tier: tier
+      slot: slot,
+      tier: tier,
+      value: value_for(slot, tier, floor),
+      name: item_name(slot, tier)
     }
   end
 
-  @doc "The `n` highest-damage items out of `equipment`, best first."
-  def best(equipment, n) when is_list(equipment) do
-    equipment |> Enum.sort_by(& &1.damage, :desc) |> Enum.take(n)
+  @doc "The common-tier boots every new player starts already wearing."
+  def starter_boots do
+    %__MODULE__{
+      id: 0,
+      slot: :boots,
+      tier: :common,
+      value: Map.fetch!(@boots_tier_bonus, :common),
+      name: "Common Boots"
+    }
   end
+
+  @doc "Whether `challenger` is a strict upgrade over `current` (`nil` counts as no item)."
+  def better?(nil, %__MODULE__{}), do: true
+
+  def better?(%__MODULE__{value: current}, %__MODULE__{value: challenger}),
+    do: challenger > current
+
+  defp value_for(:weapon, tier, floor),
+    do: (floor + 1) * Map.fetch!(@weapon_tier_multiplier, tier) + Enum.random(0..2)
+
+  defp value_for(:armor, tier, _floor),
+    do: Enum.random(0..2) + Map.fetch!(@armor_tier_bonus, tier)
+
+  defp value_for(:boots, tier, _floor), do: Map.fetch!(@boots_tier_bonus, tier)
+
+  defp item_name(slot, tier),
+    do:
+      "#{tier |> to_string() |> String.capitalize()} #{Enum.random(Map.fetch!(@item_names, slot))}"
 
   defp roll_tier do
     total = @tier_weights |> Keyword.values() |> Enum.sum()
